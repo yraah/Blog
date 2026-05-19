@@ -1,0 +1,35 @@
+/* 🎨 DARK VIOLET TABLE */
+
+.custom-table .ant-table {
+  background: #14052e !important;
+  color: #fff;
+}
+
+.custom-table .ant-table-thead > tr > th {
+  background: #392467 !important;
+  color: #fff !important;
+  border-bottom: 1px solid #3a2a6a !important;
+}
+
+.custom-table .ant-table-tbody > tr > td {
+  background: #F1EAFF !important;
+  color: #000000 !important;
+}
+
+/* pagination */
+.custom-table .ant-pagination {
+  color: #fff;
+}
+
+.custom-table .ant-pagination-item {
+  background: #392467;
+  border: none;
+}
+
+.custom-table .ant-pagination-item a {
+  color: #fff;
+}
+
+.custom-table .ant-pagination-item-active {
+  background: #392467;
+}

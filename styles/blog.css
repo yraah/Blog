@@ -1,0 +1,72 @@
+.blog-content {
+  margin-top: 20px;
+}
+
+/* HEADINGS */
+.blog-content h1,
+.blog-content h2,
+.blog-content h3 {
+  color: white;
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.blog-content h1 {
+  font-size: 28px;
+}
+
+.blog-content h2 {
+  font-size: 24px;
+}
+
+.blog-content h3 {
+  font-size: 20px;
+}
+
+/* PARAGRAPH */
+.blog-content p {
+  color: #cbd5f5;
+  line-height: 1.8;
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+/* LINKS */
+.blog-content a {
+  color: #a855f7;
+  text-decoration: none;
+}
+
+/* LIST */
+.blog-content ul {
+  padding-left: 20px;
+}
+
+.blog-content li {
+  margin-bottom: 6px;
+  color: #cbd5f5;
+}
+
+/* IMAGE */
+.blog-content img {
+  width: 100%;
+  border-radius: 10px;
+  margin: 15px 0;
+}
+
+/* ACTIVE MENU ITEM */
+.ant-menu-dark .ant-menu-item-selected {
+  background-color: #5b3aa3 !important; /* lighter shade for active */
+}
+
+/* HOVER EFFECT */
+.ant-menu-dark .ant-menu-item:hover {
+  background-color: #4a2f85 !important;
+}
+
+/* ICON + TEXT COLOR WHEN ACTIVE */
+.ant-menu-dark .ant-menu-item-selected .anticon,
+.ant-menu-dark .ant-menu-item-selected {
+  color: #ffffff !important;
+}

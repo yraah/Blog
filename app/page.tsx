@@ -1,65 +1,377 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
+
+type Category = {
+  id: number;
+  name: string;
+  icon: string
+};
+
+type PostForm = {
+  id: number
+  title: string;
+  description: string;
+  category: string;
+  slug: string;
+  image: string;
+};
 
 export default function Home() {
+  const router = useRouter();
+  const [current, setCurrent] = useState(0);
+
+  const [posts, setPosts] = useState<PostForm[]>([]);
+  const [active, setActive] = useState("Slots");
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // 🔥 FETCH POSTS
+        const postRes = await fetch("/api/posts");
+        const postData = await postRes.json();
+
+        // 🔥 FETCH CATEGORIES
+        const catRes = await fetch("/api/categories");
+        const catData = await catRes.json();
+
+        setPosts(Array.isArray(postData) ? postData : []);
+        setCategories(Array.isArray(catData) ? catData : []);
+
+        // ✅ set default active category
+        if (catData?.length > 0) {
+          setActive(catData[0].name);
+        }
+
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (posts.length === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % Math.min(posts.length, 5));
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [posts]);
+
+  // 🔍 FILTER BY CATEGORY
+  const filtered = posts.filter(
+    (p) => p.category?.toLowerCase() === active.toLowerCase()
+  );
+
+const cleanText = (html: string, limit = 120) => {
+  const text = html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+
+  return text.length > limit ? text.substring(0, limit) + "..." : text;
+};
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div style={styles.container}>
+      {/* HERO */}
+      <div style={styles.hero}>
+        {posts.slice(0, 5).map((post, index) => (
+          <div
+            key={post.id}
+            style={{
+              ...styles.slide,
+              opacity: current === index ? 1 : 0,
+              zIndex: current === index ? 1 : 0,
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <img src={post.image} alt={post.title} style={styles.heroImg} />
+
+            <div style={styles.heroOverlay}>
+              <h1 style={styles.heroTitle}>{cleanText(post.title)}</h1>
+              <p style={styles.heroSubtitle}>
+  {cleanText(post.description, 100)}
+</p>
+
+              <button
+                style={styles.readBtn}
+                onClick={() => router.push(`/${post.slug}`)}
+              >
+                Read More →
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* DOTS */}
+        <div style={styles.dots}>
+          {posts.slice(0, 5).map((_, i) => (
+            <span
+              key={i}
+              onClick={() => setCurrent(i)}
+              style={{
+                ...styles.dot,
+                opacity: current === i ? 1 : 0.4,
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ))}
         </div>
-      </main>
+      </div>
+
+      {/* CATEGORY */}
+      <div style={styles.categoryWrapper}>
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActive(cat.name)}
+            style={{
+              ...styles.categoryBtn,
+              ...(active === cat.name ? styles.activeCategory : {}),
+            }}
+          >
+            {cat.icon && (
+              <img src={cat.icon} alt={cat.name} style={styles.icon} />
+            )}
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+      {/* GRID */}
+      <div style={styles.grid}>
+        {loading ? (
+          <p style={styles.message}>Loading posts...</p>
+        ) : filtered.length === 0 ? (
+          <p style={styles.message}>No posts found</p>
+        ) : (
+          filtered.map((post) => (
+            <div
+              key={post.id}
+              style={styles.card}
+              onClick={() => router.push(`/${post.slug}`)}
+            >
+              <div style={styles.imageWrapper}>
+                <img
+                  src={post.image}
+                  alt={post.title}
+                  style={styles.cardImage}
+                />
+                <span style={styles.badge}>{post.category}</span>
+              </div>
+
+              <div style={styles.cardContent}>
+                <h3 style={styles.title}>
+  {cleanText(post.title, 60)}
+</h3>
+               <p style={styles.desc}>
+  {cleanText(post.description, 120)}
+</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
+
+const styles: { [key: string]: CSSProperties } = {
+  container: {
+    minHeight: "100vh",
+    padding: "20px",
+    fontFamily: "Inter, Arial, sans-serif",
+
+    background: `
+    radial-gradient(circle at top left, rgba(177,94,255,0.18), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(139,92,246,0.15), transparent 35%),
+    linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
+  `,
+  },
+
+  hero: {
+    position: "relative",
+    maxWidth: "1400px",
+    margin: "0 auto 50px",
+    height: "420px",
+    borderRadius: "16px",
+    overflow: "hidden",
+  },
+
+  slide: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    transition: "opacity 0.6s ease",
+  },
+
+  categoryBtn: {
+    padding: "10px 16px",
+    borderRadius: "999px",
+    border: "1px solid #B15EFF",
+    background: "#B15EFF", // ✅ changed
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "13px",
+    fontWeight: "500",
+    transition: "0.2s",
+    color: "#fff", // 🔥 add this for contrast
+    boxShadow: "0 0 10px rgba(177, 94, 255, 0.5)",
+  },
+
+  heroImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+
+  heroOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    padding: "40px",
+    background:
+      "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0))",
+    color: "#fff",
+  },
+
+  heroTitle: {
+    fontSize: "28px",
+    fontWeight: "700",
+    marginBottom: "10px",
+  },
+
+  heroSubtitle: {
+    fontSize: "14px",
+    marginBottom: "15px",
+    opacity: 0.9,
+  },
+
+  readBtn: {
+    background: "#fff",
+    color: "#111",
+    border: "none",
+    padding: "10px 16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+
+  /* DOTS */
+  dots: {
+    position: "absolute",
+    bottom: "15px",
+    right: "20px",
+    display: "flex",
+    gap: "8px",
+  },
+
+  dot: {
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    background: "#fff",
+    cursor: "pointer",
+  },
+
+  /* CATEGORY */
+  categoryWrapper: {
+    maxWidth: "1400px",
+    margin: "0 auto 30px",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+  },
+
+
+
+  activeCategory: {
+    background: "#c3a7ff", // ✅ changed
+    color: "#fff",
+    border: "1px solid #c3a7ff",
+  },
+
+  icon: {
+    width: "16px",
+    height: "16px",
+  },
+
+  /* GRID */
+  grid: {
+    maxWidth: "1400px",
+    margin: "0 auto",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "25px",
+  },
+
+  card: {
+    background: "#fff",
+    borderRadius: "14px",
+    overflow: "hidden",
+    cursor: "pointer",
+    transition: "0.25s",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+  },
+
+  imageWrapper: {
+    position: "relative",
+  },
+
+  cardImage: {
+    width: "100%",
+    height: "200px", // 🔥 bigger image
+    objectFit: "cover",
+  },
+
+  badge: {
+    position: "absolute",
+    top: "10px",
+    left: "10px",
+    background: "#111827",
+    color: "#fff",
+    padding: "4px 10px",
+    borderRadius: "999px",
+    fontSize: "11px",
+  },
+
+  cardContent: {
+    padding: "15px",
+  },
+
+  title: {
+    fontSize: "16px",
+    fontWeight: "600",
+    marginBottom: "8px",
+    color: "#111827",
+  },
+
+  desc: {
+    fontSize: "13px",
+    color: "#6b7280",
+    lineHeight: "1.5",
+  },
+
+  message: {
+    textAlign: "center",
+    width: "100%",
+    color: "#6b7280",
+  },
+};
