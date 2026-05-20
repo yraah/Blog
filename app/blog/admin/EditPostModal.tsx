@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Modal, Input, Upload, Button, message, Row, Col, Select } from "antd";
-import type { RcFile } from "antd/es/upload";
+import { Modal, Input, Upload, Button, message, Row, Col, Select, Form } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import { Form } from "antd";
 import dynamic from "next/dynamic";
 
 const Editor = dynamic(
@@ -12,12 +10,9 @@ const Editor = dynamic(
   { ssr: false }
 );
 
-
-
 type Category = {
   id: number;
   name: string;
-
 };
 
 type Post = {
@@ -29,11 +24,10 @@ type Post = {
   meta_title: string;
   meta_description: string;
   alt_image_name: string;
-
 };
 
 type EditPostModalProps = {
-  post: Post;
+  post: any;
   onClose: () => void;
   onSuccess: () => void;
 };
@@ -43,8 +37,8 @@ export default function EditPostModal({
   onClose,
   onSuccess,
 }: EditPostModalProps) {
-  const [imageFile, setImageFile] = useState<RcFile | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [formInstance] = Form.useForm();
 
   const [form, setForm] = useState({
@@ -56,6 +50,8 @@ export default function EditPostModal({
     meta_description: "",
     alt_image_name: "",
   });
+
+  const [imageUrl, setImageUrl] = useState<string>("");
 
   // 📌 FETCH CATEGORIES
   useEffect(() => {
@@ -82,57 +78,43 @@ export default function EditPostModal({
       };
 
       setForm(data);
-      formInstance.setFieldsValue(data); // 🔥 sync with antd form
+      setImageUrl(post.image || "");
+      formInstance.setFieldsValue(data);
     }
   }, [post]);
 
-  // 📌 BASE64
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+const handleSubmit = async () => {
+  if (uploading) {
+    message.warning("Please wait for image upload to finish");
+    return;
+  }
 
-      reader.readAsDataURL(file);
+  if (!imageUrl) {
+    message.error("Please upload image first");
+    return;
+  }
 
-      reader.onload = () => {
-        resolve(reader.result as string);
-      };
+  console.log("HANDLE SUBMIT IMAGE URL:", imageUrl);
 
-      reader.onerror = (error) => reject(error);
-    });
-  };
+  await formInstance.validateFields();
 
- const handleSubmit = async () => {
-  try {
-    await formInstance.validateFields(); // 🔥 validation
+  const res = await fetch(`/api/posts/${post.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...form,
+      image: imageUrl,
+    }),
+  });
 
-    let base64Image = form.image;
-
-    if (imageFile) {
-      base64Image = await convertToBase64(imageFile);
-    }
-
-    const res = await fetch(`/api/posts/${post.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        image: base64Image,
-      }),
-    });
-
-    if (res.ok) {
-      message.success("Post updated successfully 🎉");
-      onClose();
-      onSuccess?.();
-    } else {
-      message.error("Failed to update post");
-    }
-  } catch (err) {
-    // validation error
+  if (res.ok) {
+    message.success("Post updated successfully 🎉");
+    onClose();
+    onSuccess?.();
   }
 };
-
-  if (!post) return null;
 
   return (
     <Modal
@@ -146,50 +128,28 @@ export default function EditPostModal({
       <Form form={formInstance} layout="vertical">
         <Row gutter={[16, 16]}>
 
-          {/* LEFT SIDE */}
+          {/* LEFT */}
           <Col span={14}>
             <h3>Post Content</h3>
 
             {/* TITLE */}
-            <Form.Item
-              label="Title"
-              name="title"
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (!value || value === "<p><br></p>") {
-                      return Promise.reject("Title is required");
-                    }
-                    return Promise.resolve();
-                  },
-                },
-              ]}
-            >
+            <Form.Item label="Title" name="title">
               <Editor
-                value={form.title || ""}
+                value={form.title}
                 onChange={(e) => {
                   const value = e.target.value;
-
                   setForm((prev) => ({ ...prev, title: value }));
-
                   formInstance.setFieldsValue({ title: value });
-                }}
-                containerProps={{
-                  style: { minHeight: "80px" },
                 }}
               />
             </Form.Item>
 
             {/* CATEGORY */}
-            <Form.Item
-              label="Category"
-              name="category"
-              rules={[{ required: true, message: "Select category" }]}
-            >
+            <Form.Item label="Category" name="category">
               <Select
-                onChange={(value) => {
-                  setForm((prev) => ({ ...prev, category: value }));
-                }}
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, category: value }))
+                }
               >
                 {categories.map((cat) => (
                   <Select.Option key={cat.id} value={cat.name}>
@@ -199,22 +159,51 @@ export default function EditPostModal({
               </Select>
             </Form.Item>
 
-            {/* IMAGE */}
+            {/* IMAGE UPLOAD */}
             <Form.Item label="Featured Image">
-              <Upload
-                beforeUpload={(file) => {
-                  setImageFile(file);
-                  return false;
-                }}
-                maxCount={1}
-              >
-                <Button icon={<UploadOutlined />}>Upload Image</Button>
-              </Upload>
+          <Upload
+  maxCount={1}
+  showUploadList={false}
+  customRequest={async ({ file, onSuccess, onError }) => {
+    try {
+      setUploading(true); // ✅ START LOADING
 
-              {(imageFile || form.image) && (
+      const formData = new FormData();
+      formData.append("file", file as File);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      console.log("UPLOAD RESPONSE:", data);
+
+      if (data?.url) {
+        setImageUrl(data.url);
+        message.success("Image uploaded");
+        onSuccess?.(data);
+      } else {
+        message.error("Upload failed");
+        onError?.(new Error("No URL"));
+      }
+    } catch (err) {
+      console.error(err);
+      onError?.(err as Error);
+    } finally {
+      setUploading(false); // ✅ STOP LOADING
+    }
+  }}
+>
+  <Button icon={<UploadOutlined />} loading={uploading} disabled={uploading}>
+    {uploading ? "Please wait, uploading..." : "Upload Image"}
+  </Button>
+</Upload>
+
+              {imageUrl && (
                 <img
-                  src={imageFile ? URL.createObjectURL(imageFile) : form.image}
-                  alt="preview"
+                  src={imageUrl}
                   style={{
                     width: "100%",
                     marginTop: 10,
@@ -227,39 +216,19 @@ export default function EditPostModal({
             </Form.Item>
 
             {/* DESCRIPTION */}
-            <Form.Item
-              label="Description"
-              name="description"
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (!value || value === "<p><br></p>") {
-                      return Promise.reject("Description is required");
-                    }
-                    return Promise.resolve();
-                  },
-                },
-              ]}
-            >
+            <Form.Item label="Description" name="description">
               <Editor
-                value={form.description || ""}
+                value={form.description}
                 onChange={(e) => {
                   const value = e.target.value;
-
                   setForm((prev) => ({ ...prev, description: value }));
-
-                  formInstance.setFieldsValue({
-                    description: value,
-                  });
-                }}
-                containerProps={{
-                  style: { minHeight: "200px" },
+                  formInstance.setFieldsValue({ description: value });
                 }}
               />
             </Form.Item>
           </Col>
 
-          {/* RIGHT SIDE */}
+          {/* RIGHT */}
           <Col span={10}>
             <h3>SEO Settings</h3>
 
@@ -297,14 +266,22 @@ export default function EditPostModal({
               />
             </Form.Item>
 
-            {/* SEO PREVIEW */}
-            <div style={{ marginTop: 10, padding: 10, background: "#fafafa", borderRadius: 8 }}>
+            {/* PREVIEW */}
+            <div
+              style={{
+                marginTop: 10,
+                padding: 10,
+                background: "#fafafa",
+                borderRadius: 8,
+              }}
+            >
               <small style={{ color: "#888" }}>Preview</small>
               <div style={{ fontWeight: 600 }}>
                 {form.meta_title || form.title || "Post title"}
               </div>
               <div style={{ fontSize: 12, color: "#666" }}>
-                {form.meta_description || "Meta description will appear here..."}
+                {form.meta_description ||
+                  "Meta description will appear here..."}
               </div>
             </div>
           </Col>

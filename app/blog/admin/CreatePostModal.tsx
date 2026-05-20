@@ -23,7 +23,7 @@ const Editor = dynamic(
 type Category = {
   id: number;
   name: string;
-};  
+};
 
 type PostForm = {
   title: string;
@@ -36,14 +36,16 @@ export default function CreatePostModal({
   onSuccess: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formInstance] = Form.useForm();
 
-const [form, setForm] = useState<PostForm>({
-  title: "",
-  description: "",
-});
+  const [form, setForm] = useState<PostForm>({
+    title: "",
+    description: "",
+  });
+
+  // ✅ CLOUDINARY IMAGE URL
+  const [imageUrl, setImageUrl] = useState<string>("");
 
   // 📌 FETCH CATEGORIES
   useEffect(() => {
@@ -56,37 +58,24 @@ const [form, setForm] = useState<PostForm>({
     fetchCategories();
   }, []);
 
-  // 📌 convert image
-  const convertToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  // 📌 CLOUDINARY UPLOAD HANDLER (used inside Upload)
+  const uploadToCloudinary = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    reader.readAsDataURL(file);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
 
-    reader.onload = () => {
-      resolve(reader.result as string);
-    };
+    const data = await res.json();
 
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-  const uploadProps = {
-    beforeUpload: (file : File) => {
-      setImageFile(file);
-      return false;
-    },
-    maxCount: 1,
-    onRemove: () => setImageFile(null),
+    if (data?.url) {
+      setImageUrl(data.url);
+    }
   };
 
-  // 📌 SUBMIT (VALIDATED)
-  const handleSubmit = async (values : any) => {
-    let imageBase64 = "";
-
-    if (imageFile) {
-      imageBase64 = await convertToBase64(imageFile);
-    }
+  const handleSubmit = async (values: any) => {
 
     const res = await fetch("/api/posts", {
       method: "POST",
@@ -95,17 +84,22 @@ const [form, setForm] = useState<PostForm>({
       },
       body: JSON.stringify({
         ...values,
-        image: imageBase64,
+        image: imageUrl, // ✅ Cloudinary URL only
       }),
     });
 
+    console.log("VALUES FROM FORM:", values);
+console.log("IMAGE URL STATE:", imageUrl);
+
     if (res.ok) {
       formInstance.resetFields();
+
       setForm({
-    title: "",
-    description: "",
-  });
-      setImageFile(null);
+        title: "",
+        description: "",
+      });
+
+      setImageUrl("");
       setOpen(false);
       onSuccess?.();
     }
@@ -124,16 +118,13 @@ const [form, setForm] = useState<PostForm>({
         footer={null}
         width={1000}
       >
-        <Form
-          form={formInstance}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
+        <Form form={formInstance} layout="vertical" onFinish={handleSubmit}>
           <Row gutter={16}>
-            {/* LEFT */}
+            {/* LEFT SIDE */}
             <Col span={12}>
               <h3>Post Content</h3>
 
+              {/* TITLE */}
               <Form.Item
                 label="Title"
                 name="title"
@@ -149,31 +140,32 @@ const [form, setForm] = useState<PostForm>({
                 ]}
               >
                 <Editor
-                  value={form.title || ""}
+                  value={form.title}
                   onChange={(e) => {
                     const value = e.target.value;
 
-                    setForm((prev) => ({ ...prev, title: value }));
+                    setForm((prev) => ({
+                      ...prev,
+                      title: value,
+                    }));
 
                     formInstance.setFieldsValue({
                       title: value,
                     });
                   }}
                   containerProps={{
-                    style: {
-                      minHeight: "80px", // smaller than description
-                    },
+                    style: { minHeight: "80px" },
                   }}
                 />
               </Form.Item>
 
-
-
-
+              {/* CATEGORY */}
               <Form.Item
                 label="Category"
                 name="category"
-                rules={[{ required: true, message: "Category is required" }]}
+                rules={[
+                  { required: true, message: "Category is required" },
+                ]}
               >
                 <Select placeholder="Select Category">
                   {categories.map((cat) => (
@@ -184,36 +176,30 @@ const [form, setForm] = useState<PostForm>({
                 </Select>
               </Form.Item>
 
+              {/* IMAGE UPLOAD */}
               <Form.Item
-  label="Image"
-  name="image"
-  valuePropName="fileList"
-  getValueFromEvent={(e) => {
-    if (Array.isArray(e)) return e;
-    return e?.fileList;
-  }}
-  rules={[
-    {
-      required: true,
-      message: "Image is required",
-    },
-  ]}
->
-  <Upload
-    beforeUpload={(file : File) => {
-      setImageFile(file); // still needed for base64
-      return false;
-    }}
-    maxCount={1}
-    listType="picture"
-  >
-    <Button icon={<UploadOutlined />}>Upload Image</Button>
-  </Upload>
-</Form.Item>
+                label="Image"
+                name="image"
+                rules={[
+                  { required: true, message: "Image is required" },
+                ]}
+              >
+                <Upload
+                  maxCount={1}
+                  listType="picture"
+                  beforeUpload={(file) => {
+                    uploadToCloudinary(file);
+                    return false; // prevent default upload
+                  }}
+                  onRemove={() => setImageUrl("")}
+                >
+                  <Button icon={<UploadOutlined />}>
+                    Upload Image
+                  </Button>
+                </Upload>
+              </Form.Item>
 
-
-
-              {/* ✅ EDITOR FIXED */}
+              {/* DESCRIPTION */}
               <Form.Item
                 label="Description"
                 name="description"
@@ -235,13 +221,11 @@ const [form, setForm] = useState<PostForm>({
                   onChange={(e) => {
                     const value = e.target.value;
 
-                    // update local
-                   setForm({
-    title: "",
-    description: "",
-  });
+                    setForm((prev) => ({
+                      ...prev,
+                      description: value,
+                    }));
 
-                    // update form (IMPORTANT)
                     formInstance.setFieldsValue({
                       description: value,
                     });
@@ -253,7 +237,7 @@ const [form, setForm] = useState<PostForm>({
               </Form.Item>
             </Col>
 
-            {/* RIGHT */}
+            {/* RIGHT SIDE */}
             <Col span={12}>
               <h3>SEO Meta Tags</h3>
 
@@ -261,13 +245,15 @@ const [form, setForm] = useState<PostForm>({
                 label="Meta Title"
                 name="meta_title"
                 rules={[
-                  { required: true, message: "Meta title is required" },
+                  {
+                    required: true,
+                    message: "Meta title is required",
+                  },
                 ]}
               >
                 <Input />
               </Form.Item>
 
-              {/* OPTIONAL */}
               <Form.Item label="Alt Image Name" name="alt_image_name">
                 <Input placeholder="Optional SEO alt text" />
               </Form.Item>
@@ -297,7 +283,6 @@ const [form, setForm] = useState<PostForm>({
               Cancel
             </Button>
 
-            {/* ✅ VALIDATED SUBMIT */}
             <Button type="primary" htmlType="submit">
               Create Post
             </Button>
