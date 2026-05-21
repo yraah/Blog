@@ -22,6 +22,9 @@ export async function generateMetadata({ params }: Props) {
       index: true,
       follow: true,
     },
+    alternates: {
+      canonical: `https://blog.yoller.com/${slug}`,
+    },
   };
 }
 
