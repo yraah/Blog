@@ -28,32 +28,35 @@ export async function POST(req) {
       image,
       meta_title,
       meta_description,
-      alt_image_name, // ✅ NEW FIELD
+      alt_image_name,
     } = body;
-console.log("IMAGE LENGTH:", image?.length);
-    const slug = title
+
+    const cleanTitle = title.replace(/<[^>]+>/g, "");
+
+    const slug = cleanTitle
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-");
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
 
     await db.query(
       `INSERT INTO posts 
       (title, slug, category, description, image, meta_title, meta_description, alt_image_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        title,
+        cleanTitle,
         slug,
         category,
         description,
         image,
         meta_title,
         meta_description,
-        alt_image_name, // ✅ NEW FIELD
+        alt_image_name,
       ]
     );
 
-    return Response.json({ message: "Post created" });
+    return Response.json({ message: "Post created", slug });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

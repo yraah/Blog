@@ -5,25 +5,25 @@ type Props = {
   };
 };
 
-export async function generateMetadata({ params }: Props) {
-  const { slug } = await params;
-  
-
-  const cleanSlug = (text: string) => {
+const cleanText = (text: string) => {
   return text
-    .replace(/<[^>]+>/g, "") // remove HTML tags
-    .replace(/&[^;]+;/g, "") // remove HTML entities
-    .replace(/[^a-zA-Z0-9\s-]/g, "") // remove weird chars
+    .replace(/<[^>]+>/g, "")
+    .replace(/&[^;]+;/g, "")
+    .replace(/[^a-z0-9\s-]/gi, "")
     .trim()
-    .replace(/\s+/g, "-") // spaces → dash
+    .replace(/\s+/g, "-")
     .toLowerCase();
 };
-const safeSlug = cleanSlug(slug);
 
-const res = await fetch(
-  `http://localhost:3000/api/posts/slug/${safeSlug}`,
-  { cache: "no-store" }
-);
+export async function generateMetadata({ params }: Props) {
+
+  const { slug } = await params;
+  const safeSlug = cleanText(slug);
+
+  const res = await fetch(
+    `http://localhost:3000/api/posts/slug/${slug}`,
+    { cache: "no-store" }
+  );
 
   const post = await res.json();
 
@@ -35,7 +35,7 @@ const res = await fetch(
       follow: true,
     },
     alternates: {
-      canonical: `https://blog.yoller.com/${safeSlug}`,
+      canonical: `https://blog.yoller.com/${cleanText(post.title)}`,
     },
   };
 }

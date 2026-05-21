@@ -30,6 +30,18 @@ type PostForm = {
   description: string;
 };
 
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/<[^>]+>/g, "") // remove HTML tags
+    .replace(/&[^;]+;/g, "") // remove entities
+    .replace(/[^a-z0-9\s-]/g, "") // remove special chars
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+};
+
 export default function CreatePostModal({
   onSuccess,
 }: {
@@ -75,35 +87,36 @@ export default function CreatePostModal({
     }
   };
 
-  const handleSubmit = async (values: any) => {
+const handleSubmit = async (values: any) => {
+  const generatedSlug = slugify(values.title);
 
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...values,
-        image: imageUrl, // ✅ Cloudinary URL only
-      }),
-    });
-
-    console.log("VALUES FROM FORM:", values);
+  const res = await fetch("/api/posts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...values,
+      slug: generatedSlug, // 🔥 ADD THIS
+      image: imageUrl,
+    }),
+  });
+   console.log("VALUES FROM FORM:", values);
 console.log("IMAGE URL STATE:", imageUrl);
 
-    if (res.ok) {
-      formInstance.resetFields();
+  if (res.ok) {
+    formInstance.resetFields();
 
-      setForm({
-        title: "",
-        description: "",
-      });
+    setForm({
+      title: "",
+      description: "",
+    });
 
-      setImageUrl("");
-      setOpen(false);
-      onSuccess?.();
-    }
-  };
+    setImageUrl("");
+    setOpen(false);
+    onSuccess?.();
+  }
+};
 
   return (
     <>

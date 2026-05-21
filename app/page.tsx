@@ -75,17 +75,17 @@ export default function Home() {
     (p) => p.category?.toLowerCase() === active.toLowerCase()
   );
 
-const cleanText = (html: string, limit = 120) => {
-  const text = html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .trim();
+  const cleanText = (html: string, limit = 120) => {
+    const text = html
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .trim();
 
-  return text.length > limit ? text.substring(0, limit) + "..." : text;
-};
+    return text.length > limit ? text.substring(0, limit) + "..." : text;
+  };
 
   return (
     <div style={styles.container}>
@@ -105,8 +105,8 @@ const cleanText = (html: string, limit = 120) => {
             <div style={styles.heroOverlay}>
               <h1 style={styles.heroTitle}>{cleanText(post.title)}</h1>
               <p style={styles.heroSubtitle}>
-  {cleanText(post.description, 100)}
-</p>
+                {cleanText(post.description, 100)}
+              </p>
 
               <button
                 style={styles.readBtn}
@@ -176,11 +176,11 @@ const cleanText = (html: string, limit = 120) => {
 
               <div style={styles.cardContent}>
                 <h3 style={styles.title}>
-  {cleanText(post.title, 60)}
-</h3>
-               <p style={styles.desc}>
-  {cleanText(post.description, 120)}
-</p>
+                  {cleanText(post.title, 60)}
+                </h3>
+                <p style={styles.desc}>
+                  {cleanText(post.description, 120)}
+                </p>
               </div>
             </div>
           ))
