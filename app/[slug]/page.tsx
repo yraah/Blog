@@ -16,7 +16,6 @@ const cleanText = (text: string) => {
 };
 
 export async function generateMetadata({ params }: Props) {
-
   const { slug } = await params;
   const safeSlug = cleanText(slug);
 
@@ -27,15 +26,46 @@ export async function generateMetadata({ params }: Props) {
 
   const post = await res.json();
 
+  const title = post?.meta_title || post?.title || "Casino Blog";
+  const description = post?.meta_description || post?.description || "";
+  const url = `https://blog.yoller.com/${cleanText(post.title)}`;
+  const image = post?.image || "https://blog.yoller.com/default-og.jpg";
+
   return {
-    title: post?.meta_title || post?.title || "Casino Blog",
-    description: post?.meta_description || post?.description || "",
+    title,
+    description,
+
     robots: {
       index: true,
       follow: true,
     },
+
     alternates: {
-      canonical: `https://blog.yoller.com/${cleanText(post.title)}`,
+      canonical: url,
+    },
+
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Yoller Blog",
+      type: "article",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+      creator: "@your_twitter_handle",
     },
   };
 }

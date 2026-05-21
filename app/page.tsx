@@ -69,29 +69,75 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, [posts]);
-
-  useEffect(() => {
+useEffect(() => {
   document.title =
     "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
 
-  const setMeta = (name: string, content: string) => {
-    let element = document.querySelector(`meta[name="${name}"]`);
+  const setMeta = (key: string, value: string, isProperty = false) => {
+    const selector = isProperty
+      ? `meta[property="${key}"]`
+      : `meta[name="${key}"]`;
+
+    let element = document.querySelector(selector);
 
     if (!element) {
       element = document.createElement("meta");
-      element.setAttribute("name", name);
+      if (isProperty) {
+        element.setAttribute("property", key);
+      } else {
+        element.setAttribute("name", key);
+      }
       document.head.appendChild(element);
     }
 
-    element.setAttribute("content", content);
+    element.setAttribute("content", value);
   };
 
-  setMeta(
-    "description",
-    "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players."
-  );
+  const setLink = (rel: string, href: string) => {
+    let element = document.querySelector(`link[rel="${rel}"]`);
 
+    if (!element) {
+      element = document.createElement("link");
+      element.setAttribute("rel", rel);
+      document.head.appendChild(element);
+    }
+
+    element.setAttribute("href", href);
+  };
+
+  const title =
+    "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
+
+  const description =
+    "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players.";
+
+  const url = "https://blog.yoller.com/";
+  const image = "https://blog.yoller.com/default-og.jpg";
+
+  // Basic SEO
+  setMeta("description", description);
   setMeta("robots", "index, follow");
+
+  // Canonical
+  setLink("canonical", url);
+
+  // =========================
+  // OG TAGS (Facebook, Discord, etc.)
+  // =========================
+  setMeta("og:title", title, true);
+  setMeta("og:description", description, true);
+  setMeta("og:url", url, true);
+  setMeta("og:type", "website", true);
+  setMeta("og:image", image, true);
+
+  // =========================
+  // X (Twitter) CARDS
+  // =========================
+  setMeta("twitter:card", "summary_large_image");
+  setMeta("twitter:title", title);
+  setMeta("twitter:description", description);
+  setMeta("twitter:image", image);
+  setMeta("twitter:site", "@your_twitter_handle");
 }, []);
 
   // 🔍 FILTER BY CATEGORY
