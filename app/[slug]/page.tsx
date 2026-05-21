@@ -92,25 +92,25 @@ export default async function Page({ params }: Props) {
 }
 
 const styles: { [key: string]: CSSProperties } = {
-page: {
-  minHeight: "100vh",
-  fontFamily: "Inter, Arial, sans-serif",
-
-  background: `
-    radial-gradient(circle at top left, rgba(177,94,255,0.15), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(139,92,246,0.12), transparent 35%),
-    linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
-  `,
-},
+  page: {
+    minHeight: "100vh",
+    fontFamily: "Inter, Arial, sans-serif",
+    padding: "clamp(10px, 3vw, 20px)",
+    background: `
+      radial-gradient(circle at top left, rgba(177,94,255,0.15), transparent 35%),
+      radial-gradient(circle at bottom right, rgba(139,92,246,0.12), transparent 35%),
+      linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
+    `,
+  },
 
   /* HERO 2-COLUMN */
   heroRow: {
     maxWidth: "1200px",
-    margin: "40px auto",
+    margin: "clamp(20px, 5vw, 40px) auto",
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "30px",
-    padding: "0 20px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", // ✅ auto responsive
+    gap: "clamp(15px, 3vw, 30px)",
+    padding: "0 clamp(10px, 3vw, 20px)",
     alignItems: "center",
   },
 
@@ -123,31 +123,32 @@ page: {
 
   heroImage: {
     width: "100%",
-    height: "100%",
-    objectFit: "contain", // no crop
+    height: "clamp(220px, 35vw, 420px)", // ✅ responsive height
+    objectFit: "contain",
     display: "block",
   },
 
   heroContent: {
     display: "flex",
     flexDirection: "column",
-    gap: "15px",
+    gap: "12px",
   },
 
   heroTitle: {
-    fontSize: "38px",
+    fontSize: "clamp(22px, 4vw, 38px)", // ✅ responsive text
     fontWeight: "700",
     color: "#111827",
     margin: 0,
+    lineHeight: "1.2",
   },
 
   meta: {
-    fontSize: "13px",
+    fontSize: "clamp(12px, 2vw, 13px)",
     color: "#6b7280",
   },
 
   summary: {
-    fontSize: "15px",
+    fontSize: "clamp(14px, 2vw, 15px)",
     color: "#374151",
     lineHeight: "1.6",
   },
@@ -166,12 +167,12 @@ page: {
   /* CONTENT */
   container: {
     maxWidth: "900px",
-    margin: "40px auto",
-    padding: "0 20px",
+    margin: "clamp(20px, 5vw, 40px) auto",
+    padding: "0 clamp(10px, 3vw, 20px)",
   },
 
   content: {
-    fontSize: "17px",
+    fontSize: "clamp(15px, 2.5vw, 17px)", // ✅ readable on mobile
     lineHeight: "1.9",
     color: "#1f2937",
   },

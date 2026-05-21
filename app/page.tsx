@@ -193,21 +193,20 @@ const cleanText = (html: string, limit = 120) => {
 const styles: { [key: string]: CSSProperties } = {
   container: {
     minHeight: "100vh",
-    padding: "20px",
+    padding: "clamp(10px, 3vw, 20px)",
     fontFamily: "Inter, Arial, sans-serif",
-
     background: `
-    radial-gradient(circle at top left, rgba(177,94,255,0.18), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(139,92,246,0.15), transparent 35%),
-    linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
-  `,
+      radial-gradient(circle at top left, rgba(177,94,255,0.18), transparent 35%),
+      radial-gradient(circle at bottom right, rgba(139,92,246,0.15), transparent 35%),
+      linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
+    `,
   },
 
   hero: {
     position: "relative",
     maxWidth: "1400px",
-    margin: "0 auto 50px",
-    height: "420px",
+    margin: "0 auto 40px",
+    height: "clamp(220px, 50vw, 420px)", // ✅ responsive
     borderRadius: "16px",
     overflow: "hidden",
   },
@@ -217,22 +216,6 @@ const styles: { [key: string]: CSSProperties } = {
     width: "100%",
     height: "100%",
     transition: "opacity 0.6s ease",
-  },
-
-  categoryBtn: {
-    padding: "10px 16px",
-    borderRadius: "999px",
-    border: "1px solid #B15EFF",
-    background: "#B15EFF", // ✅ changed
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "13px",
-    fontWeight: "500",
-    transition: "0.2s",
-    color: "#fff", // 🔥 add this for contrast
-    boxShadow: "0 0 10px rgba(177, 94, 255, 0.5)",
   },
 
   heroImg: {
@@ -246,21 +229,21 @@ const styles: { [key: string]: CSSProperties } = {
     bottom: 0,
     left: 0,
     width: "100%",
-    padding: "40px",
+    padding: "clamp(15px, 4vw, 40px)", // ✅ responsive padding
     background:
       "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0))",
     color: "#fff",
   },
 
   heroTitle: {
-    fontSize: "28px",
+    fontSize: "clamp(18px, 3vw, 28px)", // ✅ responsive text
     fontWeight: "700",
     marginBottom: "10px",
   },
 
   heroSubtitle: {
-    fontSize: "14px",
-    marginBottom: "15px",
+    fontSize: "clamp(12px, 2vw, 14px)",
+    marginBottom: "12px",
     opacity: 0.9,
   },
 
@@ -268,17 +251,18 @@ const styles: { [key: string]: CSSProperties } = {
     background: "#fff",
     color: "#111",
     border: "none",
-    padding: "10px 16px",
+    padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
     borderRadius: "8px",
     cursor: "pointer",
     fontWeight: "600",
+    fontSize: "clamp(12px, 2vw, 14px)",
   },
 
   /* DOTS */
   dots: {
     position: "absolute",
-    bottom: "15px",
-    right: "20px",
+    bottom: "clamp(10px, 2vw, 15px)",
+    right: "clamp(10px, 3vw, 20px)",
     display: "flex",
     gap: "8px",
   },
@@ -294,16 +278,32 @@ const styles: { [key: string]: CSSProperties } = {
   /* CATEGORY */
   categoryWrapper: {
     maxWidth: "1400px",
-    margin: "0 auto 30px",
+    margin: "0 auto 25px",
     display: "flex",
     flexWrap: "wrap",
     gap: "10px",
+    overflowX: "auto", // ✅ mobile scroll
   },
 
-
+  categoryBtn: {
+    padding: "8px 14px",
+    borderRadius: "999px",
+    border: "1px solid #B15EFF",
+    background: "#B15EFF",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "clamp(12px, 2vw, 13px)",
+    fontWeight: "500",
+    transition: "0.2s",
+    color: "#fff",
+    boxShadow: "0 0 10px rgba(177, 94, 255, 0.5)",
+    whiteSpace: "nowrap",
+  },
 
   activeCategory: {
-    background: "#c3a7ff", // ✅ changed
+    background: "#c3a7ff",
     color: "#fff",
     border: "1px solid #c3a7ff",
   },
@@ -318,8 +318,8 @@ const styles: { [key: string]: CSSProperties } = {
     maxWidth: "1400px",
     margin: "0 auto",
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: "25px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", // ✅ responsive grid
+    gap: "20px",
   },
 
   card: {
@@ -337,7 +337,7 @@ const styles: { [key: string]: CSSProperties } = {
 
   cardImage: {
     width: "100%",
-    height: "200px", // 🔥 bigger image
+    height: "clamp(160px, 25vw, 200px)", // ✅ responsive image
     objectFit: "cover",
   },
 
@@ -353,18 +353,18 @@ const styles: { [key: string]: CSSProperties } = {
   },
 
   cardContent: {
-    padding: "15px",
+    padding: "clamp(12px, 2vw, 15px)",
   },
 
   title: {
-    fontSize: "16px",
+    fontSize: "clamp(14px, 2vw, 16px)",
     fontWeight: "600",
-    marginBottom: "8px",
+    marginBottom: "6px",
     color: "#111827",
   },
 
   desc: {
-    fontSize: "13px",
+    fontSize: "clamp(12px, 1.8vw, 13px)",
     color: "#6b7280",
     lineHeight: "1.5",
   },
