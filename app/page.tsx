@@ -70,6 +70,30 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [posts]);
 
+  useEffect(() => {
+  document.title =
+    "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
+
+  const setMeta = (name: string, content: string) => {
+    let element = document.querySelector(`meta[name="${name}"]`);
+
+    if (!element) {
+      element = document.createElement("meta");
+      element.setAttribute("name", name);
+      document.head.appendChild(element);
+    }
+
+    element.setAttribute("content", content);
+  };
+
+  setMeta(
+    "description",
+    "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players."
+  );
+
+  setMeta("robots", "index, follow");
+}, []);
+
   // 🔍 FILTER BY CATEGORY
   const filtered = posts.filter(
     (p) => p.category?.toLowerCase() === active.toLowerCase()
