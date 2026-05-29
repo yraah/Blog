@@ -1,0 +1,21 @@
+.page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-bg);
+}
+
+.card {
+  width: 360px;
+}
+
+.sectionTitle {
+  display: block;
+  margin-top: var(--space-lg);
+  font-weight: 600;
+}
+
+.formGap {
+  margin-top: var(--space-sm);
+}

@@ -1,0 +1,15 @@
+.logout {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: #ff4d4f;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}

@@ -1,142 +1,88 @@
+// app/blog/admin/DashboardContent.tsx
+// FIX: Replaced manual loading/error/fetch pattern with useFetch hook.
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { Row, Col, Card, Statistic, Spin, Divider } from "antd";
-type Category = {
-  id: number;
-  name: string;
+import { useMemo } from "react";
+import dynamic from "next/dynamic";
+import { message } from "antd";
 
-};
+import { categoriesService } from "@/services/categories.service";
+import { postsService } from "@/services/posts.service";
+import { useFetch } from "@/hooks/useFetch";
+import { formatError } from "@/utils/error";
+import styles from "@/styles/dashboard.module.css";
+import type { CategoryRow } from "@/types/category";
+import type { PostRow } from "@/types/posts";
 
-type PostForm = {
-  title: string;
-  category: string
-  description: string;
-};
+const Row       = dynamic(() => import("antd").then((m) => m.Row),       { ssr: false });
+const Col       = dynamic(() => import("antd").then((m) => m.Col),       { ssr: false });
+const Card      = dynamic(() => import("antd").then((m) => m.Card),      { ssr: false });
+const Statistic = dynamic(() => import("antd").then((m) => m.Statistic), { ssr: false });
+const Divider   = dynamic(() => import("antd").then((m) => m.Divider),   { ssr: false });
+const Spin      = dynamic(() => import("antd").then((m) => m.Spin),      { ssr: false });
+
+async function fetchDashboard() {
+  const [catRes, postRes] = await Promise.all([
+    categoriesService.getAll(),
+    postsService.getAll(),
+  ]);
+  return {
+    categories: catRes.data  as CategoryRow[],
+    posts:      postRes.data as PostRow[],
+  };
+}
 
 export default function DashboardContent() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [posts, setPosts] = useState<PostForm[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error } = useFetch(fetchDashboard);
 
-  // 🔥 FETCH DATA
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+  const categories = data?.categories ?? [];
+  const posts      = data?.posts      ?? [];
 
-        const [catRes, postRes] = await Promise.all([
-          fetch("/api/categories"),
-          fetch("/api/posts"),
-        ]);
+  if (error) {
+    message.error(formatError(error));
+  }
 
-        const catData = await catRes.json();
-        const postData = await postRes.json();
-
-        setCategories(Array.isArray(catData) ? catData : []);
-        setPosts(Array.isArray(postData) ? postData : []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // 🔥 TOTAL POSTS
-  const totalPosts = posts.length;
+  const categoryStats = useMemo(
+    () => categories.map((cat) => ({
+      ...cat,
+      count: posts.filter(
+        (p) => p?.category?.toLowerCase() === cat.name.toLowerCase()
+      ).length,
+    })),
+    [categories, posts]
+  );
 
   if (loading) {
-    return <Spin style={{ display: "block", margin: "50px auto" }} />;
+    return <Spin size="large" style={{ display: "block", margin: "50px auto" }} />;
   }
 
   return (
     <>
-      {/* 📊 CATEGORY STATS */}
-      <Row gutter={[16, 16]}>
-        {categories.map((cat) => {
-          const count = posts.filter(
-            (p) =>
-              p?.category?.toLowerCase() === cat.name.toLowerCase()
-          ).length;
-
-          return (
-            <Col xs={24} sm={12} md={8} lg={6} key={cat.id}>
-              <Card
-                style={{
-                  backgroundColor: "#A367B1",
-                  borderRadius: 12,
-                  transition: "0.3s",
-                  boxShadow: "0 0 10px rgba(255,255,255,0.1)",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform =
-                    "translateY(-5px) scale(1.03)";
-                  e.currentTarget.style.boxShadow =
-                    "0 0 20px rgba(255,255,255,0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform =
-                    "translateY(0) scale(1)";
-                  e.currentTarget.style.boxShadow =
-                    "0 0 10px rgba(255,255,255,0.1)";
-                }}
-              >
-                <Statistic
-                  title={
-                    <span style={{ color: "#fff" }}>
-                      {cat.name}
-                    </span>
-                  }
-                  value={count}
-                  suffix={
-                    <span style={{ color: "#fff" }}>posts</span>
-                  }
-                  styles={{
-                    content: {
-                      color: "#fff"
-                    },
-                  }}
-                />
-              </Card>
-            </Col>
-          );
-        })}
+      <Row gutter={[16, 16]} className={styles.grid}>
+        {categoryStats.map((cat) => (
+          <Col xs={24} sm={12} md={8} lg={6} key={cat.id}>
+            <Card className={styles.card}>
+              <Statistic
+                title={<span className={styles.cardTitle}>{cat.name}</span>}
+                value={cat.count}
+                suffix={<span className={styles.cardTitle}>posts</span>}
+                styles={{ content: { color: "#fff" } }}
+              />
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      {/* 🔥 DIVIDER */}
-      <Divider
-        style={{
-          borderColor: "#8c8c8c",
-          margin: "30px 0",
-        }}
-      />
+      <Divider className={styles.divider} />
 
-      {/* 🔥 TOTAL POSTS */}
       <Row justify="center">
         <Col xs={24} sm={12} md={8}>
-          <Card
-            style={{
-              backgroundColor: "#A367B1",
-              borderRadius: 12,
-              boxShadow: "0 0 15px rgba(168,85,247,0.4)",
-            }}
-          >
+          <Card className={styles.totalCard}>
             <Statistic
-              title={
-                <span style={{ color: "#fff" }}>
-                  Total Posts
-                </span>
-              }
-              value={totalPosts}
-              styles={{
-                content: {
-                  color: "#fff"
-                },
-              }}
+              title={<span className={styles.cardTitle}>Total Posts</span>}
+              value={posts.length}
+              styles={{ content: { color: "#fff" } }}
             />
           </Card>
         </Col>

@@ -1,0 +1,34 @@
+.grid {
+  margin-top: var(--space-md);
+}
+
+.card {
+  background-color: #AA336A;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.cardTitle {
+  color: #fff;
+}
+
+.cardContent {
+  color: #fff;
+}
+
+.divider {
+  border-color: #8c8c8c;
+  margin: var(--space-xl) 0;
+}
+
+.totalCard {
+  background-color: #AA336A;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}

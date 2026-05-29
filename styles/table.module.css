@@ -1,0 +1,17 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.section {
+  margin-bottom: var(--space-md);
+}
+
+.searchBox {
+  width: 300px;
+}
+
+.divider {
+  margin: var(--space-md) 0;
+}

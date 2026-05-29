@@ -1,6 +1,7 @@
 import { ConfigProvider } from "antd";
 import { App as AntdApp } from "antd";
 import Script from "next/script";
+import "@/styles/variables.css";
 
 export default function RootLayout({
   children,
@@ -37,7 +38,7 @@ export default function RootLayout({
           <ConfigProvider
             theme={{
               token: {
-                colorPrimary: "#B15EFF",
+                colorPrimary: "#BF40BF",
               },
             }}
           >

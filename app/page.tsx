@@ -1,447 +1,246 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
 
-type Category = {
-  id: number;
-  name: string;
-  icon: string
+import styles from "@/styles/home.module.css";
+
+// --- Types ---
+type Category = { id: number; name: string; icon: string };
+type PostForm  = { id: number; title: string; description: string; category: string; slug: string; image: string };
+
+// --- Pure utils (outside component — never re-created on render) ---
+const cleanText = (html: string, limit = 120): string => {
+  const text = html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+  return text.length > limit ? text.substring(0, limit) + "..." : text;
 };
 
-type PostForm = {
-  id: number
-  title: string;
-  description: string;
-  category: string;
-  slug: string;
-  image: string;
-};
+// Static skeleton count — no Math.random()
+const SKELETON_COUNT = [1, 2, 3, 4, 5, 6];
 
+// --- Skeleton fallbacks ---
+function HeroSkeleton() {
+  return <div className={styles.heroSkeleton} />;
+}
+
+function GridSkeleton() {
+  return (
+    <>
+      {SKELETON_COUNT.map((i) => (
+        <div key={i} className={styles.cardSkeleton} />
+      ))}
+    </>
+  );
+}
+
+// --- Component ---
 export default function Home() {
   const router = useRouter();
-  const [current, setCurrent] = useState(0);
 
-  const [posts, setPosts] = useState<PostForm[]>([]);
-  const [active, setActive] = useState("Slots");
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [posts, setPosts]             = useState<PostForm[]>([]);
+  const [categories, setCategories]   = useState<Category[]>([]);
+  const [active, setActive]           = useState("");
+  const [current, setCurrent]         = useState(0);
+  const [loading, setLoading]         = useState(true);
 
+  // --- SEO meta tags (run once) ---
   useEffect(() => {
+    const TITLE       = "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
+    const DESCRIPTION = "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players.";
+    const URL         = "https://blog.yoller.com/";
+    const IMAGE       = "https://blog.yoller.com/default-og.jpg";
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+    document.title = TITLE;
 
-        // 🔥 FETCH POSTS
-        const postRes = await fetch("/api/posts");
-        const postData = await postRes.json();
-
-        // 🔥 FETCH CATEGORIES
-        const catRes = await fetch("/api/categories");
-        const catData = await catRes.json();
-
-        setPosts(Array.isArray(postData) ? postData : []);
-        setCategories(Array.isArray(catData) ? catData : []);
-
-        // ✅ set default active category
-        if (catData?.length > 0) {
-          setActive(catData[0].name);
-        }
-
-      } catch (err) {
-        console.error("Failed to fetch data:", err);
-      } finally {
-        setLoading(false);
+    const setMeta = (key: string, value: string, isProperty = false) => {
+      const attr     = isProperty ? "property" : "name";
+      const selector = `meta[${attr}="${key}"]`;
+      let el         = document.querySelector(selector);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
       }
+      el.setAttribute("content", value);
     };
 
-    fetchData();
+    const setLink = (rel: string, href: string) => {
+      let el = document.querySelector(`link[rel="${rel}"]`);
+      if (!el) {
+        el = document.createElement("link");
+        el.setAttribute("rel", rel);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("href", href);
+    };
+
+    setMeta("description", DESCRIPTION);
+    setMeta("robots", "index, follow");
+    setLink("canonical", URL);
+    setMeta("og:title",       TITLE,       true);
+    setMeta("og:description", DESCRIPTION, true);
+    setMeta("og:url",         URL,         true);
+    setMeta("og:type",        "website",   true);
+    setMeta("og:image",       IMAGE,       true);
+    setMeta("twitter:card",        "summary_large_image");
+    setMeta("twitter:title",       TITLE);
+    setMeta("twitter:description", DESCRIPTION);
+    setMeta("twitter:image",       IMAGE);
+    setMeta("twitter:site",        "@your_twitter_handle");
+  }, []);
+
+  // --- Data fetch with retry (useRef pattern to avoid self-reference) ---
+  const fetchDataRef = useRef<() => Promise<void>>(async () => {});
+
+  const fetchData = useCallback(async (retry = 2) => {
+    try {
+      setLoading(true);
+
+      const [postRes, catRes] = await Promise.all([
+        fetch("/api/posts"),
+        fetch("/api/categories"),
+      ]);
+
+      const [postData, catData] = await Promise.all([
+        postRes.json(),
+        catRes.json(),
+      ]);
+
+      setPosts(Array.isArray(postData) ? postData : []);
+      setCategories(Array.isArray(catData) ? catData : []);
+
+      if (catData?.length > 0) setActive(catData[0].name);
+    } catch (err) {
+      if (retry > 0) {
+        setTimeout(() => fetchDataRef.current(), 800);
+        return;
+      }
+      console.error("Failed to fetch data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (posts.length === 0) return;
+    fetchDataRef.current = () => fetchData();
+  }, [fetchData]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, [fetchData]);
+
+  // --- Hero carousel interval ---
+  useEffect(() => {
+    if (posts.length === 0) return;
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % Math.min(posts.length, 5));
     }, 4000);
-
     return () => clearInterval(interval);
-  }, [posts]);
-useEffect(() => {
-  document.title =
-    "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
+  }, [posts.length]);
 
-  const setMeta = (key: string, value: string, isProperty = false) => {
-    const selector = isProperty
-      ? `meta[property="${key}"]`
-      : `meta[name="${key}"]`;
+  // useMemo — hero slides only recomputed when posts changes
+  const heroSlides = useMemo(() => posts.slice(0, 5), [posts]);
 
-    let element = document.querySelector(selector);
-
-    if (!element) {
-      element = document.createElement("meta");
-      if (isProperty) {
-        element.setAttribute("property", key);
-      } else {
-        element.setAttribute("name", key);
-      }
-      document.head.appendChild(element);
-    }
-
-    element.setAttribute("content", value);
-  };
-
-  const setLink = (rel: string, href: string) => {
-    let element = document.querySelector(`link[rel="${rel}"]`);
-
-    if (!element) {
-      element = document.createElement("link");
-      element.setAttribute("rel", rel);
-      document.head.appendChild(element);
-    }
-
-    element.setAttribute("href", href);
-  };
-
-  const title =
-    "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
-
-  const description =
-    "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players.";
-
-  const url = "https://blog.yoller.com/";
-  const image = "https://blog.yoller.com/default-og.jpg";
-
-  // Basic SEO
-  setMeta("description", description);
-  setMeta("robots", "index, follow");
-
-  // Canonical
-  setLink("canonical", url);
-
-  // =========================
-  // OG TAGS (Facebook, Discord, etc.)
-  // =========================
-  setMeta("og:title", title, true);
-  setMeta("og:description", description, true);
-  setMeta("og:url", url, true);
-  setMeta("og:type", "website", true);
-  setMeta("og:image", image, true);
-
-  // =========================
-  // X (Twitter) CARDS
-  // =========================
-  setMeta("twitter:card", "summary_large_image");
-  setMeta("twitter:title", title);
-  setMeta("twitter:description", description);
-  setMeta("twitter:image", image);
-  setMeta("twitter:site", "@your_twitter_handle");
-}, []);
-
-  // 🔍 FILTER BY CATEGORY
-  const filtered = posts.filter(
-    (p) => p.category?.toLowerCase() === active.toLowerCase()
+  // useMemo — filtered posts only recomputed when posts or active changes
+  const filtered = useMemo(
+    () => posts.filter((p) => p.category?.toLowerCase() === active.toLowerCase()),
+    [posts, active]
   );
 
-  const cleanText = (html: string, limit = 120) => {
-    const text = html
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .trim();
+  // useCallback — stable navigation reference
+  const navigateTo = useCallback(
+    (slug: string) => router.push(`/${slug}`),
+    [router]
+  );
 
-    return text.length > limit ? text.substring(0, limit) + "..." : text;
-  };
+  // useCallback — stable dot/category click references
+  const handleDotClick      = useCallback((i: number) => setCurrent(i), []);
+  const handleCategoryClick = useCallback((name: string) => setActive(name), []);
 
   return (
-    <div style={styles.container}>
+    <div className={styles.container}>
+
       {/* HERO */}
-      <div style={styles.hero}>
-        {posts.slice(0, 5).map((post, index) => (
-          <div
-            key={post.id}
-            style={{
-              ...styles.slide,
-              opacity: current === index ? 1 : 0,
-              zIndex: current === index ? 1 : 0,
-            }}
-          >
-            <img src={post.image} alt={post.title} style={styles.heroImg} />
+      {loading ? (
+        <HeroSkeleton />
+      ) : (
+        <div className={styles.hero}>
+          {heroSlides.map((post, index) => (
+            <div
+              key={post.id}
+              className={styles.slide}
+              style={{ opacity: current === index ? 1 : 0, zIndex: current === index ? 1 : 0 }}
+            >
+              <img src={post.image} alt={post.title} className={styles.heroImg} loading="lazy" />
 
-            <div style={styles.heroOverlay}>
-              <h1 style={styles.heroTitle}>{cleanText(post.title)}</h1>
-              <p style={styles.heroSubtitle}>
-                {cleanText(post.description, 100)}
-              </p>
+              <div className={styles.heroOverlay}>
+                <h1 className={styles.heroTitle}>{cleanText(post.title)}</h1>
+                <p className={styles.heroSubtitle}>{cleanText(post.description, 100)}</p>
 
-              <button
-                style={styles.readBtn}
-                onClick={() => router.push(`/${post.slug}`)}
-              >
-                Read More →
-              </button>
+                <button className={styles.readBtn} onClick={() => navigateTo(post.slug)}>
+                  Read More →
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-
-        {/* DOTS */}
-        <div style={styles.dots}>
-          {posts.slice(0, 5).map((_, i) => (
-            <span
-              key={i}
-              onClick={() => setCurrent(i)}
-              style={{
-                ...styles.dot,
-                opacity: current === i ? 1 : 0.4,
-              }}
-            />
           ))}
+
+          {/* DOTS */}
+          <div className={styles.dots}>
+            {heroSlides.map((_, i) => (
+              <span
+                key={i}
+                className={styles.dot}
+                onClick={() => handleDotClick(i)}
+                style={{ opacity: current === i ? 1 : 0.4 }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CATEGORY */}
-      <div style={styles.categoryWrapper}>
+      <div className={styles.categoryWrapper}>
         {categories.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setActive(cat.name)}
-            style={{
-              ...styles.categoryBtn,
-              ...(active === cat.name ? styles.activeCategory : {}),
-            }}
+            onClick={() => handleCategoryClick(cat.name)}
+            className={`${styles.categoryBtn} ${active === cat.name ? styles.activeCategory : ""}`}
           >
-            {cat.icon && (
-              <img src={cat.icon} alt={cat.name} style={styles.icon} />
-            )}
+            {cat.icon && <img src={cat.icon} alt={cat.name} className={styles.icon} loading="lazy" />}
             {cat.name}
           </button>
         ))}
       </div>
 
       {/* GRID */}
-      <div style={styles.grid}>
+      <div className={styles.grid}>
         {loading ? (
-          <p style={styles.message}>Loading posts...</p>
+          <GridSkeleton />
         ) : filtered.length === 0 ? (
-          <p style={styles.message}>No posts found</p>
+          <p className={styles.message}>No posts found</p>
         ) : (
           filtered.map((post) => (
-            <div
-              key={post.id}
-              style={styles.card}
-              onClick={() => router.push(`/${post.slug}`)}
-            >
-              <div style={styles.imageWrapper}>
-                <img
-                  src={post.image}
-                  alt={post.title}
-                  style={styles.cardImage}
-                />
-                <span style={styles.badge}>{post.category}</span>
+            <div key={post.id} className={styles.card} onClick={() => navigateTo(post.slug)}>
+              <div className={styles.imageWrapper}>
+                <img src={post.image} alt={post.title} className={styles.cardImage} loading="lazy" />
+                <span className={styles.badge}>{post.category}</span>
               </div>
-
-              <div style={styles.cardContent}>
-                <h3 style={styles.title}>
-                  {cleanText(post.title, 60)}
-                </h3>
-                <p style={styles.desc}>
-                  {cleanText(post.description, 120)}
-                </p>
+              <div className={styles.cardContent}>
+                <h3 className={styles.title}>{cleanText(post.title, 60)}</h3>
+                <p className={styles.desc}>{cleanText(post.description, 120)}</p>
               </div>
             </div>
           ))
         )}
       </div>
+
     </div>
   );
 }
-
-const styles: { [key: string]: CSSProperties } = {
-  container: {
-    minHeight: "100vh",
-    padding: "clamp(10px, 3vw, 20px)",
-    fontFamily: "Inter, Arial, sans-serif",
-    background: `
-      radial-gradient(circle at top left, rgba(177,94,255,0.18), transparent 35%),
-      radial-gradient(circle at bottom right, rgba(139,92,246,0.15), transparent 35%),
-      linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
-    `,
-  },
-
-  hero: {
-    position: "relative",
-    maxWidth: "1400px",
-    margin: "0 auto 40px",
-    height: "clamp(220px, 50vw, 420px)", // ✅ responsive
-    borderRadius: "16px",
-    overflow: "hidden",
-  },
-
-  slide: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    transition: "opacity 0.6s ease",
-  },
-
-  heroImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-
-  heroOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: "100%",
-    padding: "clamp(15px, 4vw, 40px)", // ✅ responsive padding
-    background:
-      "linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0))",
-    color: "#fff",
-  },
-
-  heroTitle: {
-    fontSize: "clamp(18px, 3vw, 28px)", // ✅ responsive text
-    fontWeight: "700",
-    marginBottom: "10px",
-  },
-
-  heroSubtitle: {
-    fontSize: "clamp(12px, 2vw, 14px)",
-    marginBottom: "12px",
-    opacity: 0.9,
-  },
-
-  readBtn: {
-    background: "#fff",
-    color: "#111",
-    border: "none",
-    padding: "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "600",
-    fontSize: "clamp(12px, 2vw, 14px)",
-  },
-
-  /* DOTS */
-  dots: {
-    position: "absolute",
-    bottom: "clamp(10px, 2vw, 15px)",
-    right: "clamp(10px, 3vw, 20px)",
-    display: "flex",
-    gap: "8px",
-  },
-
-  dot: {
-    width: "10px",
-    height: "10px",
-    borderRadius: "50%",
-    background: "#fff",
-    cursor: "pointer",
-  },
-
-  /* CATEGORY */
-  categoryWrapper: {
-    maxWidth: "1400px",
-    margin: "0 auto 25px",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    overflowX: "auto", // ✅ mobile scroll
-  },
-
-  categoryBtn: {
-    padding: "8px 14px",
-    borderRadius: "999px",
-    border: "1px solid #B15EFF",
-    background: "#B15EFF",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "clamp(12px, 2vw, 13px)",
-    fontWeight: "500",
-    transition: "0.2s",
-    color: "#fff",
-    boxShadow: "0 0 10px rgba(177, 94, 255, 0.5)",
-    whiteSpace: "nowrap",
-  },
-
-  activeCategory: {
-    background: "#c3a7ff",
-    color: "#fff",
-    border: "1px solid #c3a7ff",
-  },
-
-  icon: {
-    width: "16px",
-    height: "16px",
-  },
-
-  /* GRID */
-  grid: {
-    maxWidth: "1400px",
-    margin: "0 auto",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", // ✅ responsive grid
-    gap: "20px",
-  },
-
-  card: {
-    background: "#fff",
-    borderRadius: "14px",
-    overflow: "hidden",
-    cursor: "pointer",
-    transition: "0.25s",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-  },
-
-  imageWrapper: {
-    position: "relative",
-  },
-
-  cardImage: {
-    width: "100%",
-    height: "clamp(160px, 25vw, 200px)", // ✅ responsive image
-    objectFit: "cover",
-  },
-
-  badge: {
-    position: "absolute",
-    top: "10px",
-    left: "10px",
-    background: "#111827",
-    color: "#fff",
-    padding: "4px 10px",
-    borderRadius: "999px",
-    fontSize: "11px",
-  },
-
-  cardContent: {
-    padding: "clamp(12px, 2vw, 15px)",
-  },
-
-  title: {
-    fontSize: "clamp(14px, 2vw, 16px)",
-    fontWeight: "600",
-    marginBottom: "6px",
-    color: "#111827",
-  },
-
-  desc: {
-    fontSize: "clamp(12px, 1.8vw, 13px)",
-    color: "#6b7280",
-    lineHeight: "1.5",
-  },
-
-  message: {
-    textAlign: "center",
-    width: "100%",
-    color: "#6b7280",
-  },
-};

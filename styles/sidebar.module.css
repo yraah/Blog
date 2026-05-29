@@ -1,0 +1,23 @@
+.sider {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #AA336A;
+}
+
+.header {
+  color: var(--color-text);
+  padding: var(--space-md);
+  text-align: center;
+  font-weight: 700;
+}
+
+.menu {
+  flex: 1;
+  background-color: #AA336A;
+  color: var(--color-text);
+}
+
+.toggle {
+  padding: var(--space-sm);
+}

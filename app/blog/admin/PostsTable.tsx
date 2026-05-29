@@ -1,203 +1,149 @@
+// app/blog/admin/PostsTable.tsx
+// FIX: Replaced inline retry logic with withRetry util.
+// FIX: Replaced inline cleanText/truncate with utils/text.ts.
+// FIX: Uses PAGINATION constant instead of hardcoded pageSize: 5.
+// FIX: Uses useFetch hook instead of manual loading/error state.
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { Table, Button, Image, Space, Divider, Input } from "antd";
+import { useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { message } from "antd";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import type { TableProps } from "antd";
+
 import CreatePostModal from "./CreatePostModal";
 import EditPostModal from "./EditPostModal";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { Popconfirm, message } from "antd";
-import "@/styles/table.css";
 
-type Post = {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
+import { postsService } from "@/services/posts.service";
+import { formatError } from "@/utils/error";
+import { withRetry } from "@/utils/retry";
+import { cleanText, truncate } from "@/utils/text";
+import { useFetch } from "@/hooks/useFetch";
+import { PAGINATION } from "@/lib/constants";
+import type { PostRow } from "@/types/posts";
+import styles from "@/styles/posts-table.module.css";
+
+const Table       = dynamic(() => import("antd").then((m) => m.Table),           { ssr: false }) as React.ComponentType<TableProps<PostRow>>;
+const AntImage    = dynamic(() => import("antd").then((m) => m.Image),           { ssr: false });
+const Space       = dynamic(() => import("antd").then((m) => m.Space),           { ssr: false });
+const Divider     = dynamic(() => import("antd").then((m) => m.Divider),         { ssr: false });
+const InputSearch = dynamic(() => import("antd").then((m) => m.Input.Search),    { ssr: false });
+const Popconfirm  = dynamic(() => import("antd").then((m) => m.Popconfirm),      { ssr: false });
+
+// Stable util — not recreated on render
+const isValidImage = (img?: string): boolean => {
+  if (!img) return false;
+  if (img.startsWith("data:image")) return false;
+  return img.startsWith("http") || img.startsWith("/");
 };
 
 export default function PostsTable() {
-  const [data, setData] = useState<Post[]>([]);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [searchText, setSearchText] = useState("");
+  const [selectedPost, setSelectedPost] = useState<PostRow | null>(null);
+  const [searchText,   setSearchText]   = useState("");
 
-  // 🔄 GET POSTS API
-  const fetchPosts = async () => {
-    const res = await fetch("/api/posts");
-    const json = await res.json();
-    setData(json);
-  };
-
-  // initial load
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  const cleanText = (html: string) => {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .trim();
-};
-
-  // 🗑 DELETE
-  const handleDelete = async (id: number) => {
-  try {
-    const res = await fetch(`/api/posts/${id}`, {
-      method: "DELETE",
-    });
-
-    if (res.ok) {
-      message.success("Deleted successfully");
-      // reload your data here
-    } else {
-      message.error("Failed to delete");
-    }
-  } catch (err) {
-    message.error("Something went wrong");
-  }
-};
-
-  const refresh = async () => {
-    const res = await fetch("/api/posts");
-    const json = await res.json();
-    setData(json);
-  };
-
-  // 🔍 SEARCH FILTER
-  const filteredData = data.filter((post) =>
-    post.title.toLowerCase().includes(searchText.toLowerCase())
+  const { data, loading, refetch } = useFetch<PostRow[]>(() =>
+    postsService.getAll().then((r) => r.data)
   );
 
-  const columns = [
-{
-  title: "Title",
-  dataIndex: "title",
-  ellipsis: true,
-  render: (text: string) => {
-    if (!text) return "-";
+  const posts = data ?? [];
 
-    const clean = cleanText(text);
+  const handleDelete = useCallback(async (id: number) => {
+    try {
+      await withRetry(() => postsService.remove(id));
+      message.success("Deleted successfully");
+      refetch();
+    } catch (error) {
+      message.error(formatError(error));
+    }
+  }, [refetch]);
 
-    return clean.length > 60
-      ? clean.slice(0, 60) + "..."
-      : clean;
-  },
-},
+  const filteredData = useMemo(
+    () => posts.filter((post) =>
+      post.title?.toLowerCase().includes(searchText.toLowerCase())
+    ),
+    [posts, searchText]
+  );
+
+  const columns = useMemo(() => [
     {
-      title: "Category",
+      title:     "Title",
+      dataIndex: "title",
+      ellipsis:  true,
+      render:    (text: string) => truncate(cleanText(text), 60),
+    },
+    {
+      title:     "Category",
       dataIndex: "category",
     },
-
-    // 🆕 NEW COLUMN
     {
-      title: "Meta Title",
-      dataIndex: "meta_title",
-      ellipsis: true,
-    },
-
-    // 🆕 NEW COLUMN
-    {
-      title: "Meta Description",
-      dataIndex: "meta_description",
-      ellipsis: true,
-    },
-
-   {
-  title: "Description",
-  dataIndex: "description",
-  ellipsis: true,
-  render: (text: string) => {
-    if (!text) return "-";
-
-    const clean = cleanText(text);
-
-    return clean.length > 100
-      ? clean.slice(0, 100) + "..."
-      : clean;
-  },
-},
-    {
-      title: "Alt Image",
-      dataIndex: "alt_image_name",
-      key: "alt_image_name",
-      render: (text: string) => text || "-",
+      title:     "Description",
+      dataIndex: "description",
+      ellipsis:  true,
+      render:    (text: string) => truncate(cleanText(text), 100),
     },
     {
-      title: "Image",
+      title:     "Image",
       dataIndex: "image",
-      render: (image: any) =>
-        image ? <Image src={image} width={60} /> : "No Image",
+      render:    (image?: string) =>
+        isValidImage(image) ? (
+          <AntImage src={image} width={60} height={60} className={styles.image} alt="post-image" />
+        ) : "No Image",
     },
     {
-  title: "Action",
-  key: "action",
-  
-  render: (_: any, record: any) => (
-    <Space size="middle">
+      title: "Action",
+      key:   "action",
+      render: (_: unknown, record: PostRow) => (
+        <Space size="middle">
+          <EditOutlined
+            className={styles.editIcon}
+            onClick={() => setSelectedPost(record)}
+          />
+          <Popconfirm
+            title="Delete this post?"
+            description="Are you sure you want to delete this data?"
+            okText="Yes"
+            cancelText="No"
+            onConfirm={() => handleDelete(record.id)}
+          >
+            <DeleteOutlined className={styles.deleteIcon} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ], [handleDelete]);
 
-      {/* EDIT ICON */}
-      <EditOutlined
-        style={{ color: "#1890ff", cursor: "pointer" }}
-        onClick={() => setSelectedPost(record)}
+  return (
+    <div className={styles.wrapper}>
+      <div className={styles.actionsTop}>
+        <CreatePostModal onSuccess={refetch} />
+      </div>
+
+      <Divider className={styles.divider} />
+
+      <InputSearch
+        placeholder="Search post title..."
+        allowClear
+        onChange={(e) => setSearchText(e.target.value)}
+        className={styles.search}
       />
 
-      {/* DELETE ICON WITH CONFIRM */}
-      <Popconfirm
-        title="Delete this post?"
-        description="Are you sure you want to delete this data?"
-        okText="Yes"
-        cancelText="No"
-        onConfirm={() => handleDelete(record.id)}
-        onCancel={() => message.info("Cancelled")}
-      >
-        <DeleteOutlined
-          style={{ color: "red", cursor: "pointer" }}
-        />
-      </Popconfirm>
-
-    </Space>
-  ),
-}
-  ];
-  return (
-    <>
-      {/* CREATE */}
-      <div style={{ marginBottom: 16 }}>
-        <CreatePostModal onSuccess={fetchPosts} />
-      </div>
-
-      <Divider />
-
-      {/* SEARCH */}
-      <div style={{ marginBottom: 16 }}>
-        <Input.Search
-          placeholder="Search post title..."
-          allowClear
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 300 }}
-        />
-      </div>
-
-      {/* TABLE */}
       <Table
         className="custom-table"
         columns={columns}
         dataSource={filteredData}
         rowKey="id"
-        pagination={{ pageSize: 5 }}
+        loading={loading}
+        pagination={{ pageSize: PAGINATION.defaultPageSize }}
       />
 
-      {/* EDIT MODAL */}
       {selectedPost && (
         <EditPostModal
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          onSuccess={refresh}
+          onSuccess={refetch}
         />
       )}
-    </>
+    </div>
   );
 }

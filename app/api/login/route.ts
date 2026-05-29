@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcrypt";
+import type { LoginBody, UserRow } from "@/types/users";
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
+    const { username, password }: LoginBody = await request.json();
 
     // 🔍 get user
     const [rows] = await db.query(
@@ -12,7 +13,7 @@ export async function POST(request) {
       [username]
     );
 
-    const user = rows[0];
+    const user = (rows as UserRow[])[0];
 
     if (!user) {
       return NextResponse.json(
@@ -21,7 +22,7 @@ export async function POST(request) {
       );
     }
 
-    // 🔐 VERY IMPORTANT: use await
+    // 🔐 compare password
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -39,14 +40,19 @@ export async function POST(request) {
     response.cookies.set("token", "admin-token", {
       httpOnly: true,
       path: "/",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
     });
 
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
+
     console.log("LOGIN ERROR:", error);
 
     return NextResponse.json(
-      { error: error.message },
+      { error: message },
       { status: 500 }
     );
   }

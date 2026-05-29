@@ -1,25 +1,27 @@
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-
+import type { PostRow, PostBody } from "@/types/posts";
 
 export async function GET() {
   try {
-    const [rows] = await db.query(
+    const [rows] = await db.query<PostRow[]>(
       "SELECT * FROM posts WHERE deleted_at IS NULL ORDER BY id DESC"
     );
 
-    return Response.json(rows);
-  } catch (error) {
-    return Response.json(
-      { error: error.message },
+    return NextResponse.json(rows);
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
 }
 
-
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: PostBody = await req.json();
 
     const {
       title,
@@ -56,8 +58,16 @@ export async function POST(req) {
       ]
     );
 
-    return Response.json({ message: "Post created", slug });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      message: "Post created",
+      slug,
+    });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }

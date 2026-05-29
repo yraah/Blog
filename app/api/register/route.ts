@@ -1,19 +1,26 @@
 import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import type { RegisterBody, UserRow } from "@/types/users";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
-    const { username, email, password, first_name, last_name } =
-      await req.json();
+    const {
+      username,
+      email,
+      password,
+      first_name,
+      last_name,
+    }: RegisterBody = await req.json();
 
     // 🔍 check if user exists
-    const [existing] = await db.query(
+    const [existing] = await db.query<UserRow[]>(
       "SELECT * FROM users WHERE username = ? OR email = ?",
       [username, email]
     );
 
     if (existing.length > 0) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Username or email already exists" },
         { status: 400 }
       );
@@ -29,14 +36,14 @@ export async function POST(req) {
       [username, email, hashedPassword, first_name, last_name]
     );
 
-    return Response.json({
+    return NextResponse.json({
       message: "User registered successfully",
     });
-  } catch (error) {
-    console.log(error);
-
-    return Response.json(
-      { error: error.message },
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

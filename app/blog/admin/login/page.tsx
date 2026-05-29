@@ -1,278 +1,139 @@
+// app/login/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Input, Button, Modal, message, Card, Row, Col, Typography } from "antd";
+import { useState, Suspense } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { fetchWithRetry } from "@/utils/fetchWithRetry";
+import { formatError } from "@/utils/error";
+import auth from "@/styles/auth.module.css";
+import ui from "@/styles/ui.module.css";
 
+// --- Skeleton fallbacks ---
+function CardSkeleton() {
+  return (
+    <div style={{
+      width: 360,
+      padding: 24,
+      borderRadius: 8,
+      background: "#fff",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+    }}>
+      {[100, 100, 100, 60].map((w, i) => (
+        <div key={i} style={{ height: 36, width: `${w}%`, background: "#e5e7eb", borderRadius: 6 }} />
+      ))}
+    </div>
+  );
+}
 
-const { Text } = Typography;
+function ModalSkeleton() {
+  return null; // Modal is hidden until opened — no skeleton needed
+}
+
+// --- Dynamic imports ---
+const LoginCard = dynamic(() => import("./LoginCard"), {
+  loading: () => <CardSkeleton />,
+  ssr: false,
+});
+
+const RegisterModal = dynamic(() => import("./RegisterModal"), {
+  loading: () => <ModalSkeleton />,
+  ssr: false,
+});
+
+// --- Shared form state types ---
+export type LoginForm = { username: string; password: string };
+export type RegisterForm = {
+  username: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  address: string;
+  phone: string;
+};
+
+const INITIAL_REGISTER: RegisterForm = {
+  username: "", email: "", password: "",
+  first_name: "", last_name: "", address: "", phone: "",
+};
+
 export default function LoginPage() {
-  // 🔐 LOGIN STATE
-  const [loginForm, setLoginForm] = useState({
-    username: "",
-    password: "",
-  });
+  const router = useRouter();
 
-  // 📝 REGISTER STATE
+  const [loginForm, setLoginForm] = useState<LoginForm>({ username: "", password: "" });
+  const [registerForm, setRegisterForm] = useState<RegisterForm>(INITIAL_REGISTER);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-
-  const [registerForm, setRegisterForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    first_name: "",
-    last_name: "",
-    address: "",
-    phone:"",
-  });
-
   const [loading, setLoading] = useState(false);
 
-  // 🔐 LOGIN FUNCTION
   const handleLogin = async () => {
+    const { message } = await import("antd");
+
     if (!loginForm.username || !loginForm.password) {
       return message.error("Please fill all login fields");
     }
 
-    setLoading(true);
-    message.loading("Logging in...", 0.5);
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(loginForm),
-    });
-
-    const data = await res.json();
-
-    setLoading(false);
-
-    if (res.ok) {
-      setTimeout(() => {
-        message.success("Login success 🚀");
-
-        window.location.href = "/blog/admin";
-      }, 800);
-    } else {
-      message.error(data.error || "Login failed");
+    try {
+      setLoading(true);
+      await fetchWithRetry("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(loginForm),
+      });
+      message.success("Login success 🚀");
+      router.push("/blog/admin");
+    } catch (error) {
+      message.error(formatError(error));
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 📝 REGISTER FUNCTION
   const handleRegister = async () => {
-    if (
-      !registerForm.username ||
-      !registerForm.email ||
-      !registerForm.password
-    ) {
-      return message.error("Please fill required fields");
-    }
+    const { message } = await import("antd");
 
-    setLoading(true);
-
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(registerForm),
-    });
-
-    const data = await res.json();
-
-    setLoading(false);
-
-    if (res.ok) {
-      message.success("Registered successfully 🎉");
-
-      setTimeout(() => {
-        setIsRegisterOpen(false);
-      }, 800);
-
-      setRegisterForm({
-        username: "",
-        email: "",
-        password: "",
-        first_name: "",
-        last_name: "",
-        phone:"",
-        address:""
+    try {
+      setLoading(true);
+      await fetchWithRetry("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registerForm),
       });
-    } else {
-      message.error(data.error || "Registration failed");
+      message.success("Registered successfully 🎉");
+      setIsRegisterOpen(false);
+      setRegisterForm(INITIAL_REGISTER);
+    } catch (error) {
+      message.error(formatError(error));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#f5f5f5",
-      }}
-    >
-      {/* LOGIN CARD */}
-      <Card title="Login" style={{ width: 360 }}>
-
-        {/* USERNAME */}
-        <Input
-          placeholder="Username"
-          style={{ marginBottom: 10 }}
-          value={loginForm.username}
-          onChange={(e) =>
-            setLoginForm({ ...loginForm, username: e.target.value })
-          }
-        />
-
-        {/* PASSWORD */}
-        <Input.Password
-          placeholder="Password"
-          style={{ marginBottom: 15 }}
-          value={loginForm.password}
-          onChange={(e) =>
-            setLoginForm({ ...loginForm, password: e.target.value })
-          }
-        />
-
-        {/* LOGIN BUTTON */}
-        <Button
-          type="primary"
-          block
+    <div className={auth.page}>
+      <Suspense fallback={<CardSkeleton />}>
+        <LoginCard
+          loginForm={loginForm}
+          setLoginForm={setLoginForm}
           loading={loading}
-          onClick={handleLogin}
-        >
-          Login
-        </Button>
+          onLogin={handleLogin}
+          onOpenRegister={() => setIsRegisterOpen(true)}
+        />
+      </Suspense>
 
-        {/* OPEN REGISTER */}
-        <Button
-          type="link"
-          block
-          onClick={() => setIsRegisterOpen(true)}
-        >
-          Create Account
-        </Button>
-      </Card>
-
-      {/* 📝 REGISTER MODAL */}
-<Modal
-  title="Create Account"
-  open={isRegisterOpen}
-  onCancel={() => setIsRegisterOpen(false)}
-  footer={null}
->
-  {/* 🔹 ACCOUNT INFORMATION */}
-  <Text strong>Account Information</Text>
-
-  <Row gutter={10} style={{ marginTop: 10 }}>
-    <Col span={12}>
-      <Input
-        placeholder="Username"
-        value={registerForm.username}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, username: e.target.value })
-        }
-      />
-    </Col>
-
-    <Col span={12}>
-      <Input
-        placeholder="Email"
-        value={registerForm.email}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, email: e.target.value })
-        }
-      />
-    </Col>
-  </Row>
-
-  <Input.Password
-    placeholder="Password"
-    style={{ marginTop: 10 }}
-    value={registerForm.password}
-    onChange={(e) =>
-      setRegisterForm({ ...registerForm, password: e.target.value })
-    }
-  />
-
-  {/* 🔹 PERSONAL INFORMATION */}
-  <Text strong style={{ display: "block", marginTop: 20 }}>
-    Personal Information
-  </Text>
-
-  <Row gutter={10} style={{ marginTop: 10 }}>
-    <Col span={12}>
-      <Input
-        placeholder="First Name"
-        value={registerForm.first_name}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, first_name: e.target.value })
-        }
-      />
-    </Col>
-
-    <Col span={12}>
-      <Input
-        placeholder="Last Name"
-        value={registerForm.last_name}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, last_name: e.target.value })
-        }
-      />
-    </Col>
-  </Row>
-
-  <Row gutter={10} style={{ marginTop: 10 }}>
-    <Col span={12}>
-      <Input
-        placeholder="Phone"
-        value={registerForm.phone}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, phone: e.target.value })
-        }
-      />
-    </Col>
-
-    <Col span={12}>
-      <Input
-        placeholder="Address"
-        value={registerForm.address}
-        onChange={(e) =>
-          setRegisterForm({ ...registerForm, address: e.target.value })
-        }
-      />
-    </Col>
-  </Row>
-
-  {/* 🔥 REGISTER BUTTON */}
-  <Button
-    type="primary"
-    block
-    loading={loading}
-    style={{ marginTop: 20 }}
-    onClick={() => {
-      // 🔥 VALIDATION
-      if (!registerForm.username) {
-        return message.error("Username is required");
-      }
-
-      if (!registerForm.email) {
-        return message.error("Email is required");
-      }
-
-      if (!registerForm.password) {
-        return message.error("Password is required");
-      }
-
-      if (registerForm.password.length < 6) {
-        return message.error("Password must be at least 6 characters");
-      }
-
-      handleRegister();
-    }}
-  >
-    Register
-  </Button>
-</Modal>
+      <Suspense fallback={null}>
+        <RegisterModal
+          open={isRegisterOpen}
+          registerForm={registerForm}
+          setRegisterForm={setRegisterForm}
+          loading={loading}
+          onRegister={handleRegister}
+          onClose={() => setIsRegisterOpen(false)}
+        />
+      </Suspense>
     </div>
   );
 }

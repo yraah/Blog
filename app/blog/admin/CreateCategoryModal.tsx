@@ -1,143 +1,141 @@
+// app/blog/admin/CreateCategoryModal.tsx
+// FIX: Replaced inline createCategoryWithRetry with shared withRetry util.
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { Modal, Button, Input, Form, message } from "antd";
+import { useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { message } from "antd";
 import type { RcFile } from "antd/es/upload";
-import { UploadOutlined } from "@ant-design/icons";
-import { Upload, } from "antd";
+import Image from "next/image";
 
-type Category = {
-  id: number;
-  name: string;
-  icon?: string;
-};
+import { useForm, Controller } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-export default function CategorySection({
-  onSuccess,
-}: {
-  onSuccess: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [iconFile, setIconFile] = useState<RcFile | null>(null);
+import { categoriesService } from "@/services/categories.service";
+import { formatError } from "@/utils/error";
+import { withRetry } from "@/utils/retry";
 
-  const [form] = Form.useForm();
+const Modal          = dynamic(() => import("antd").then((m) => m.Modal),          { ssr: false });
+const Button         = dynamic(() => import("antd").then((m) => m.Button),         { ssr: false });
+const Input          = dynamic(() => import("antd").then((m) => m.Input),          { ssr: false });
+const Upload         = dynamic(() => import("antd").then((m) => m.Upload),         { ssr: false });
+const UploadOutlined = dynamic(() => import("@ant-design/icons").then((m) => m.UploadOutlined), { ssr: false });
 
-  // 🔥 SUBMIT
- const handleSubmit = async () => {
-  try {
-    const values = await form.validateFields();
+// Stable schema outside component
+const categorySchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+});
 
-    let iconBase64 = values.icon;
+type CategoryFormValues = z.infer<typeof categorySchema>;
 
-    if (iconFile) {
-      iconBase64 = await convertToBase64(iconFile);
-    }
-
-    setLoading(true);
-
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...values,
-        icon: iconBase64,
-      }),
-    });
-
-    if (res.ok) {
-      message.success("Category created 🎉");
-      form.resetFields();
-      setIconFile(null);
-      setOpen(false);
-      onSuccess();
-    } else {
-      message.error("Failed to create category");
-    }
-  } catch (err) {
-    // validation error
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const convertToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
+// Stable util outside component
+const convertToBase64 = (file: RcFile): Promise<string> =>
+  new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onload  = () => resolve(reader.result as string);
+    reader.onerror = () => reject("Failed to read file");
   });
-};
+
+const FORM_DEFAULTS: CategoryFormValues = { name: "" };
+
+export default function CreateCategoryModal({ onSuccess }: { onSuccess: () => void }) {
+  const [open,     setOpen]     = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const [iconFile, setIconFile] = useState<RcFile | null>(null);
+
+  const previewUrl = useMemo(
+    () => (iconFile ? URL.createObjectURL(iconFile) : null),
+    [iconFile]
+  );
+
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<CategoryFormValues>({
+    resolver:      zodResolver(categorySchema),
+    defaultValues: FORM_DEFAULTS,
+  });
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    reset();
+    setIconFile(null);
+  }, [reset]);
+
+  const onSubmit = useCallback(async (values: CategoryFormValues) => {
+    try {
+      setLoading(true);
+
+      let iconBase64: string | undefined;
+      if (iconFile) {
+        message.loading("Uploading image...", 0.5);
+        iconBase64 = await convertToBase64(iconFile);
+      }
+
+      // FIX: withRetry from utils instead of inline createCategoryWithRetry
+      await withRetry(() =>
+        categoriesService.create({ name: values.name, icon: iconBase64 })
+      );
+
+      message.success("Category created 🎉");
+      handleClose();
+      onSuccess();
+    } catch (error) {
+      message.error(formatError(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [iconFile, handleClose, onSuccess]);
+
+  const beforeUpload = useCallback((file: RcFile) => {
+    setIconFile(file);
+    return false;
+  }, []);
 
   return (
     <div>
-
-      {/* 🔘 BUTTON */}
-      <Button
-        type="primary"
-        onClick={() => setOpen(true)}
-      >
+      <Button type="primary" onClick={() => setOpen(true)}>
         + Add Category
       </Button>
 
-
-      {/* 🪟 MODAL */}
       <Modal
         title="Create Category"
         open={open}
-        onCancel={() => setOpen(false)}
-        onOk={handleSubmit}
+        onCancel={handleClose}
+        onOk={handleSubmit(onSubmit)}
         okText="Create"
         confirmLoading={loading}
       >
-
-        <Form form={form} layout="vertical">
-
-          {/* NAME */}
-          <Form.Item
-            label="Category Name"
+        <div style={{ marginBottom: 12 }}>
+          <label>Category Name</label>
+          <Controller
             name="name"
-            rules={[{ required: true, message: "Enter category name" }]}
-          >
-            <Input placeholder="e.g. Slots, Live Casino" />
-          </Form.Item>
+            control={control}
+            render={({ field }) => (
+              <Input {...field} placeholder="e.g. Slots, Live Casino" />
+            )}
+          />
+          {errors.name && (
+            <p style={{ color: "red", marginTop: 5 }}>{errors.name.message}</p>
+          )}
+        </div>
 
-          {/* ICON */}
-          <Form.Item label="Category Icon">
+        <div>
+          <label>Category Icon</label>
+          <Upload beforeUpload={beforeUpload} maxCount={1} accept="image/*">
+            <Button icon={<UploadOutlined />}>Upload Icon</Button>
+          </Upload>
 
-  <Upload
-    beforeUpload={(file) => {
-      setIconFile(file);
-      return false;
-    }}
-    maxCount={1}
-    accept="image/*"
-  >
-    <Button icon={<UploadOutlined />}>
-      Upload Icon
-    </Button>
-  </Upload>
-
-  {iconFile && (
-    <img
-      src={URL.createObjectURL(iconFile)}
-      style={{
-        width: 50,
-        height: 50,
-        marginTop: 10,
-        borderRadius: 8,
-        objectFit: "cover",
-      }}
-    />
-  )}
-
-</Form.Item>
-        </Form>
-
+          {previewUrl && (
+            <Image
+              src={previewUrl}
+              alt="preview"
+              width={50}
+              height={50}
+              style={{ marginTop: 10, borderRadius: 8, objectFit: "cover" }}
+            />
+          )}
+        </div>
       </Modal>
     </div>
   );

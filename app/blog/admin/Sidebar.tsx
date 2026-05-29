@@ -10,6 +10,8 @@ import {
 } from "@ant-design/icons";
 import { useState } from "react";
 
+import styles from "@/styles/sidebar.module.css";
+
 const { Sider } = Layout;
 
 type SidebarProps = {
@@ -19,24 +21,21 @@ type SidebarProps = {
 export default function Sidebar({ setPage }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const items = [
+  const menuItems = [
     {
       key: "dashboard",
       icon: <DashboardOutlined />,
       label: "Dashboard",
-      onClick: () => setPage("dashboard"),
     },
     {
       key: "posts",
       icon: <FileTextOutlined />,
       label: "Posts",
-      onClick: () => setPage("posts"), // 🔥 SHOW TABLE
     },
     {
       key: "category",
       icon: <AppstoreOutlined />,
       label: "Category",
-      onClick: () => setPage("category"),
     },
   ];
 
@@ -45,37 +44,34 @@ export default function Sidebar({ setPage }: SidebarProps) {
       collapsible
       collapsed={collapsed}
       trigger={null}
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor:'#392467'
-      }}
+      className={styles.sider}
     >
-      <div
-        style={{
-          color: "#fff",
-          padding: 16,
-          textAlign: "center",
-          fontWeight: "bold",
-        }}
-      >
+      {/* HEADER */}
+      <div className={styles.header}>
         {collapsed ? "AP" : "ADMIN PANEL"}
       </div>
 
+      {/* MENU */}
       <div style={{ flex: 1 }}>
-        <Menu theme="dark" mode="inline" items={items}style={{
-    backgroundColor: "#392467",
-    color: "#fff",
-  }} />
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[]}
+          className={styles.menu}
+          items={menuItems}
+          onClick={(e) => setPage(e.key)}
+        />
       </div>
 
-      <div style={{ padding: 12 }}>
+      {/* TOGGLE */}
+      <div className={styles.toggle}>
         <Button
           block
           type="primary"
           onClick={() => setCollapsed(!collapsed)}
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          icon={
+            collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
+          }
         />
       </div>
     </Sider>

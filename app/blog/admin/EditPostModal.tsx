@@ -1,120 +1,129 @@
+// app/blog/admin/EditPostModal.tsx
+// FIX: Replaced inline uploadImage/updatePostWithRetry with withRetry + uploadService.
+// FIX: Uses PostRowWithId type (PascalCase, renamed from postRowId).
+// FIX: Uses useFetch hook for categories.
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { Modal, Input, Upload, Button, message, Row, Col, Select, Form } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { message, Form } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import Image from "next/image";
 
-const Editor = dynamic(
-  () => import("react-simple-wysiwyg").then((mod) => mod.DefaultEditor),
-  { ssr: false }
-);
+import { categoriesService } from "@/services/categories.service";
+import { postsService } from "@/services/posts.service";
+import { uploadService } from "@/services/upload.service";
+import { formatError } from "@/utils/error";
+import { withRetry } from "@/utils/retry";
+import { useFetch } from "@/hooks/useFetch";
 
-type Category = {
-  id: number;
-  name: string;
-};
+import type { CategoryRow } from "@/types/category";
+import type { PostRowWithId, PostBody } from "@/types/posts";
+import styles from "@/styles/post-form.module.css";
 
-type Post = {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  image: string;
-  meta_title: string;
-  meta_description: string;
-  alt_image_name: string;
-};
+const Modal    = dynamic(() => import("antd").then((m) => m.Modal),           { ssr: false });
+const Input    = dynamic(() => import("antd").then((m) => m.Input),           { ssr: false });
+const TextArea = dynamic(() => import("antd").then((m) => m.Input.TextArea),  { ssr: false });
+const Upload   = dynamic(() => import("antd").then((m) => m.Upload),          { ssr: false });
+const Button   = dynamic(() => import("antd").then((m) => m.Button),          { ssr: false });
+const Row      = dynamic(() => import("antd").then((m) => m.Row),             { ssr: false });
+const Col      = dynamic(() => import("antd").then((m) => m.Col),             { ssr: false });
+const Select   = dynamic(() => import("antd").then((m) => m.Select),          { ssr: false });
+const Editor   = dynamic(() => import("react-simple-wysiwyg").then((m) => m.DefaultEditor), { ssr: false });
 
 type EditPostModalProps = {
-  post: any;
-  onClose: () => void;
+  post:      PostRowWithId;
+  onClose:   () => void;
   onSuccess: () => void;
 };
 
-export default function EditPostModal({
-  post,
-  onClose,
-  onSuccess,
-}: EditPostModalProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [formInstance] = Form.useForm();
+export default function EditPostModal({ post, onClose, onSuccess }: EditPostModalProps) {
+  const [uploading,  setUploading]  = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [imageUrl,   setImageUrl]   = useState<string>(post?.image ?? "");
 
-  const [form, setForm] = useState({
-    title: "",
-    category: "",
-    description: "",
-    image: "",
-    meta_title: "",
-    meta_description: "",
-    alt_image_name: "",
-  });
+  const [form] = Form.useForm<PostRowWithId>();
 
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const title       = Form.useWatch("title",       form);
+  const description = Form.useWatch("description", form);
 
-  // 📌 FETCH CATEGORIES
+  // FIX: useFetch replaces manual fetch + retry ref pattern
+  const { data: categoriesData } = useFetch<CategoryRow[]>(() =>
+    categoriesService.getAll().then((r) => r.data)
+  );
+
+  const categoryOptions = useMemo(
+    () => (categoriesData ?? []).map((cat) => ({ label: cat.name, value: cat.name, key: cat.id })),
+    [categoriesData]
+  );
+
+  // Populate form on open
   useEffect(() => {
-    const fetchCategories = async () => {
-      const res = await fetch("/api/categories");
-      const data = await res.json();
-      setCategories(Array.isArray(data) ? data : []);
-    };
+    if (!post) return;
+    console.log(post)
+    form.setFieldsValue({
+      title:            post.title,
+      category:         post.category,
+      description:      post.description,
+      meta_title:       post.meta_title,
+      meta_description: post.meta_description,
+      alt_image_name:   post.alt_image_name,
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setImageUrl(post.image ?? "");
+  }, [post, form]);
 
-    fetchCategories();
+  // FIX: Uses uploadService instead of inline fetch
+  const handleUpload = useCallback(async ({
+    file,
+    onSuccess: uploadSuccess,
+    onError:   uploadError,
+  }: {
+    file:        File;
+    onSuccess?:  (res: object) => void;
+    onError?:    (err: Error) => void;
+  }) => {
+    try {
+      setUploading(true);
+      const res = await withRetry(() => uploadService.uploadImage(file));
+      setImageUrl(res.data.url);
+      message.success("Image uploaded");
+      uploadSuccess?.({ url: res.data.url });
+    } catch (error) {
+      message.error(formatError(error));
+      uploadError?.(error as Error);
+    } finally {
+      setUploading(false);
+    }
   }, []);
 
-  // 📌 LOAD POST DATA
-  useEffect(() => {
-    if (post) {
-      const data = {
-        title: post.title,
-        category: post.category,
-        description: post.description,
-        image: post.image,
-        meta_title: post.meta_title,
-        meta_description: post.meta_description,
-        alt_image_name: post.alt_image_name || "",
-      };
+  const handleSubmit = useCallback(async () => {
+    if (uploading) return message.warning("Please wait for image upload");
 
-      setForm(data);
-      setImageUrl(post.image || "");
-      formInstance.setFieldsValue(data);
+    try {
+      const values = await form.validateFields();
+      if (!imageUrl) return message.error("Please upload image first");
+
+      setSubmitting(true);
+
+      await withRetry(() =>
+        postsService.update(post.id, {
+          ...values,
+          image:          imageUrl,
+          alt_image_name: values.alt_image_name ?? "",
+        } as PostBody)
+      );
+
+      message.success("Post updated 🎉");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      message.error(formatError(error));
+    } finally {
+      setSubmitting(false);
     }
-  }, [post]);
-
-const handleSubmit = async () => {
-  if (uploading) {
-    message.warning("Please wait for image upload to finish");
-    return;
-  }
-
-  if (!imageUrl) {
-    message.error("Please upload image first");
-    return;
-  }
-
-  console.log("HANDLE SUBMIT IMAGE URL:", imageUrl);
-
-  await formInstance.validateFields();
-
-  const res = await fetch(`/api/posts/${post.id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      ...form,
-      image: imageUrl,
-    }),
-  });
-
-  if (res.ok) {
-    message.success("Post updated successfully 🎉");
-    onClose();
-    onSuccess?.();
-  }
-};
+  }, [uploading, imageUrl, form, post.id, onSuccess, onClose]);
 
   return (
     <Modal
@@ -123,169 +132,60 @@ const handleSubmit = async () => {
       onCancel={onClose}
       onOk={handleSubmit}
       okText="Update"
+      confirmLoading={submitting}
       width={900}
     >
-      <Form form={formInstance} layout="vertical">
+      <Form form={form} layout="vertical">
         <Row gutter={[16, 16]}>
-
-          {/* LEFT */}
           <Col span={14}>
-            <h3>Post Content</h3>
+            <h3 className={styles.sectionTitle}>Post Content</h3>
 
-            {/* TITLE */}
             <Form.Item label="Title" name="title">
               <Editor
-                value={form.title}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setForm((prev) => ({ ...prev, title: value }));
-                  formInstance.setFieldsValue({ title: value });
-                }}
+                value={title || ""}
+                onChange={(e) => form.setFieldsValue({ title: e.target.value })}
               />
             </Form.Item>
 
-            {/* CATEGORY */}
             <Form.Item label="Category" name="category">
-              <Select
-                onChange={(value) =>
-                  setForm((prev) => ({ ...prev, category: value }))
-                }
-              >
-                {categories.map((cat) => (
-                  <Select.Option key={cat.id} value={cat.name}>
-                    {cat.name}
-                  </Select.Option>
-                ))}
-              </Select>
+              <Select options={categoryOptions} />
             </Form.Item>
 
-            {/* IMAGE UPLOAD */}
             <Form.Item label="Featured Image">
-          <Upload
-  maxCount={1}
-  showUploadList={false}
-  customRequest={async ({ file, onSuccess, onError }) => {
-    try {
-      setUploading(true); // ✅ START LOADING
-
-      const formData = new FormData();
-      formData.append("file", file as File);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      console.log("UPLOAD RESPONSE:", data);
-
-      if (data?.url) {
-        setImageUrl(data.url);
-        message.success("Image uploaded");
-        onSuccess?.(data);
-      } else {
-        message.error("Upload failed");
-        onError?.(new Error("No URL"));
-      }
-    } catch (err) {
-      console.error(err);
-      onError?.(err as Error);
-    } finally {
-      setUploading(false); // ✅ STOP LOADING
-    }
-  }}
->
-  <Button icon={<UploadOutlined />} loading={uploading} disabled={uploading}>
-    {uploading ? "Please wait, uploading..." : "Upload Image"}
-  </Button>
-</Upload>
+              <Upload maxCount={1} showUploadList={false} customRequest={handleUpload as never}>
+                <Button icon={<UploadOutlined />} loading={uploading} disabled={uploading}>
+                  {uploading ? "Uploading..." : "Upload Image"}
+                </Button>
+              </Upload>
 
               {imageUrl && (
-                <img
-                  src={imageUrl}
-                  style={{
-                    width: "100%",
-                    marginTop: 10,
-                    borderRadius: 8,
-                    maxHeight: 200,
-                    objectFit: "cover",
-                  }}
-                />
+                <div className={styles.imagePreviewWrapper}>
+                  <Image
+                    src={imageUrl}
+                    alt="preview"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
               )}
             </Form.Item>
 
-            {/* DESCRIPTION */}
             <Form.Item label="Description" name="description">
               <Editor
-                value={form.description}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setForm((prev) => ({ ...prev, description: value }));
-                  formInstance.setFieldsValue({ description: value });
-                }}
+                value={description || ""}
+                onChange={(e) => form.setFieldsValue({ description: e.target.value })}
               />
             </Form.Item>
           </Col>
 
-          {/* RIGHT */}
           <Col span={10}>
-            <h3>SEO Settings</h3>
+            <h3 className={styles.sectionTitle}>SEO Settings</h3>
 
-            <Form.Item label="Meta Title" name="meta_title">
-              <Input
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    meta_title: e.target.value,
-                  }))
-                }
-              />
-            </Form.Item>
-
-            <Form.Item label="Alt Image Text" name="alt_image_name">
-              <Input
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    alt_image_name: e.target.value,
-                  }))
-                }
-              />
-            </Form.Item>
-
-            <Form.Item label="Meta Description" name="meta_description">
-              <Input.TextArea
-                rows={5}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    meta_description: e.target.value,
-                  }))
-                }
-              />
-            </Form.Item>
-
-            {/* PREVIEW */}
-            <div
-              style={{
-                marginTop: 10,
-                padding: 10,
-                background: "#fafafa",
-                borderRadius: 8,
-              }}
-            >
-              <small style={{ color: "#888" }}>Preview</small>
-              <div style={{ fontWeight: 600 }}>
-                {form.meta_title || form.title || "Post title"}
-              </div>
-              <div style={{ fontSize: 12, color: "#666" }}>
-                {form.meta_description ||
-                  "Meta description will appear here..."}
-              </div>
-            </div>
+            <Form.Item label="Meta Title" name="meta_title" > <Input value={post.meta_title}/> </Form.Item>
+            <Form.Item label="Alt Image Text"   name="alt_image_name">   <Input value={post.alt_image_name}/>           </Form.Item>
+            <Form.Item label="Meta Description" name="meta_description"> <TextArea rows={5} value={post.meta_description}/></Form.Item>
           </Col>
-
         </Row>
       </Form>
     </Modal>

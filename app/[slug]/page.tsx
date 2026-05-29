@@ -1,224 +1,126 @@
-import type { CSSProperties } from "react";
-type Props = {
-  params: {
-    slug: string;
-  };
-};
+// app/[slug]/page.tsx
+// FIX: Removed hardcoded "http://localhost:3000" — now uses env.siteUrl
+// FIX: Moved stripHtml and slugify to utils/text.ts (no duplication)
+// FIX: Uses SITE constants instead of scattered string literals
 
-const cleanText = (text: string) => {
-  return text
-    .replace(/<[^>]+>/g, "")
-    .replace(/&[^;]+;/g, "")
-    .replace(/[^a-z0-9\s-]/gi, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .toLowerCase();
-};
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
+import { env } from "@/lib/env";
+import { SITE } from "@/lib/constants";
+import { slugify, stripHtml } from "@/utils/text";
 
-export async function generateMetadata({ params }: Props) {
-  const { slug } = await params;
-  const safeSlug = cleanText(slug);
+// --- Dynamic imports ---
+const PostHero = dynamic(() => import("./PostHero"), {
+  loading: () => <HeroSkeleton />,
+  ssr: true,
+});
 
-  const res = await fetch(
-    `http://localhost:3000/api/posts/slug/${slug}`,
-    { cache: "no-store" }
-  );
+const PostContent = dynamic(() => import("./PostContent"), {
+  loading: () => <ContentSkeleton />,
+  ssr: true,
+});
 
-  const post = await res.json();
-
-  const title = post?.meta_title || post?.title || "Casino Blog";
-  const description = post?.meta_description || post?.description || "";
-  const url = `https://blog.yoller.com/${cleanText(post.title)}`;
-  const image = post?.image || "https://blog.yoller.com/default-og.jpg";
-
-  return {
-    title,
-    description,
-
-    robots: {
-      index: true,
-      follow: true,
-    },
-
-    alternates: {
-      canonical: url,
-    },
-
-    openGraph: {
-      title,
-      description,
-      url,
-      siteName: "Yoller Blog",
-      type: "article",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-    },
-
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-      creator: "@your_twitter_handle",
-    },
-  };
-}
-
-export default async function Page({ params }: Props) {
-  const { slug } = await params;
-
-  const res = await fetch(
-    `http://localhost:3000/api/posts/slug/${slug}`,
-    { cache: "no-store" }
-  );
-
-  const post = await res.json();
-
-  if (!post) {
-    return (
-      <div style={styles.wrapper}>
-        Post not found
-      </div>
-    );
-  }
-
-  const cleanText = (html: string) => { return html .replace(/<[^>]+>/g, "") }// remove HTML tags .replace(/&nbsp;/g, " ") // replace &nbsp; with space .replace(/&amp;/g, "&") // optional: decode common entities .replace(/&lt;/g, "<") .replace(/&gt;/g, ">") .trim(); };
-
+// --- Skeleton fallbacks ---
+function HeroSkeleton() {
   return (
-    <div style={styles.page}>
-
-      {/* HERO 2 COLUMN */}
-      <div style={styles.heroRow}>
-
-        {/* LEFT: IMAGE */}
-        {post?.image && (
-          <div style={styles.heroImageBox}>
-            <img
-              src={post.image}
-              alt={post.title}
-              style={styles.heroImage}
-            />
-          </div>
-        )}
-
-        {/* RIGHT: INFO */}
-        <div style={styles.heroContent}>
-          <a href="/" style={styles.backBtn}>← Back</a>
-
-          <h1 style={styles.heroTitle}>
-            {cleanText(post.title)}
-          </h1>
-
-          <p style={styles.meta}>
-            🎰 Casino Blog • {post.category || "Strategy"} • {new Date().toDateString()}
-          </p>
-
-        </div>
-
+    <div style={{ display: "flex", gap: 32, padding: 32 }}>
+      <div style={{ width: 480, height: 320, background: "#e5e7eb", borderRadius: 12 }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ height: 16, width: "30%", background: "#e5e7eb", borderRadius: 4 }} />
+        <div style={{ height: 40, width: "80%", background: "#e5e7eb", borderRadius: 4 }} />
+        <div style={{ height: 20, width: "50%", background: "#e5e7eb", borderRadius: 4 }} />
       </div>
-
-      {/* CONTENT */}
-      <div style={styles.container}>
-        <div style={styles.content}>
-          <div
-            dangerouslySetInnerHTML={{ __html: post.description }}
-          />
-        </div>
-      </div>
-
     </div>
   );
 }
 
-const styles: { [key: string]: CSSProperties } = {
-  page: {
-    minHeight: "100vh",
-    fontFamily: "Inter, Arial, sans-serif",
-    padding: "clamp(10px, 3vw, 20px)",
-    background: `
-      radial-gradient(circle at top left, rgba(177,94,255,0.15), transparent 35%),
-      radial-gradient(circle at bottom right, rgba(139,92,246,0.12), transparent 35%),
-      linear-gradient(180deg, #fdfcff 0%, #f5f0ff 50%, #ffffff 100%)
-    `,
-  },
+const SKELETON_WIDTHS = [95, 82, 78, 91, 74, 88];
 
-  /* HERO 2-COLUMN */
-  heroRow: {
-    maxWidth: "1200px",
-    margin: "clamp(20px, 5vw, 40px) auto",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", // ✅ auto responsive
-    gap: "clamp(15px, 3vw, 30px)",
-    padding: "0 clamp(10px, 3vw, 20px)",
-    alignItems: "center",
-  },
+function ContentSkeleton() {
+  return (
+    <div style={{ padding: "0 32px 64px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {SKELETON_WIDTHS.map((width, i) => (
+        <div
+          key={i}
+          style={{ height: 18, width: `${width}%`, background: "#e5e7eb", borderRadius: 4 }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  heroImageBox: {
-    width: "100%",
-    borderRadius: "14px",
-    overflow: "hidden",
-    background: "#000",
-  },
+// --- Data fetching ---
+// FIX: Uses env.siteUrl instead of hardcoded localhost
+async function getPost(slug: string) {
+  try {
+    const res = await fetch(`${env.siteUrl}/api/posts/slug/${slug}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
-  heroImage: {
-    width: "100%",
-    height: "clamp(220px, 35vw, 420px)", // ✅ responsive height
-    objectFit: "contain",
-    display: "block",
-  },
+// --- Types ---
+type Props = { params: Promise<{ slug: string }> };
 
-  heroContent: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
+// --- Metadata ---
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const post = await getPost(slug);
 
-  heroTitle: {
-    fontSize: "clamp(22px, 4vw, 38px)", // ✅ responsive text
-    fontWeight: "700",
-    color: "#111827",
-    margin: 0,
-    lineHeight: "1.2",
-  },
+  if (!post) return { title: SITE.tagline };
 
-  meta: {
-    fontSize: "clamp(12px, 2vw, 13px)",
-    color: "#6b7280",
-  },
+  const title       = post.meta_title       || post.title       || SITE.tagline;
+  const description = post.meta_description || post.description || "";
+  const url         = `${SITE.url}/${slugify(post.title)}`;
+  const image       = post.image            || `${SITE.url}${SITE.defaultOgImage}`;
 
-  summary: {
-    fontSize: "clamp(14px, 2vw, 15px)",
-    color: "#374151",
-    lineHeight: "1.6",
-  },
+  return {
+    title,
+    description,
+    robots:     { index: true, follow: true },
+    alternates: { canonical: url },
+    openGraph: {
+      title, description, url,
+      siteName: SITE.name,
+      type:     "article",
+      images:   [{ url: image, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card:    "summary_large_image",
+      title, description,
+      images:  [image],
+      creator: SITE.twitterHandle,
+    },
+  };
+}
 
-  backBtn: {
-    display: "inline-block",
-    width: "fit-content",
-    color: "#111",
-    textDecoration: "none",
-    background: "#e5e7eb",
-    padding: "6px 12px",
-    borderRadius: "999px",
-    fontSize: "12px",
-  },
+// --- Page ---
+export default async function Page({ params }: Props) {
+  const { slug } = await params;
+  const post = await getPost(slug);
 
-  /* CONTENT */
-  container: {
-    maxWidth: "900px",
-    margin: "clamp(20px, 5vw, 40px) auto",
-    padding: "0 clamp(10px, 3vw, 20px)",
-  },
+  if (!post) {
+    return <div style={{ padding: 32 }}>Post not found</div>;
+  }
 
-  content: {
-    fontSize: "clamp(15px, 2.5vw, 17px)", // ✅ readable on mobile
-    lineHeight: "1.9",
-    color: "#1f2937",
-  },
-};
+  const postData = {
+    ...post,
+    title: stripHtml(post.title),
+  };
+
+  return (
+    <div>
+      <Suspense fallback={<HeroSkeleton />}>
+        <PostHero post={postData} />
+      </Suspense>
+
+      <Suspense fallback={<ContentSkeleton />}>
+        <PostContent html={post.description} />
+      </Suspense>
+    </div>
+  );
+}

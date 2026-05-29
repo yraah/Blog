@@ -1,0 +1,46 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.uploadButton {
+  width: 100%;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.imagePreview {
+  width: 100%;
+  margin-top: var(--space-sm);
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  object-fit: cover;
+}
+
+.imagePreviewWrapper {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  height: 200px;
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}

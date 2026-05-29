@@ -1,0 +1,24 @@
+:root {
+  /* Colors */
+  --color-bg: #0b0220;
+  --color-primary: #7c3aed;
+  --color-text: #ffffff;
+  --color-muted: #a1a1aa;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* Typography */
+  --font-base: 16px;
+  --font-lg: 20px;
+  --font-xl: 32px;
+}

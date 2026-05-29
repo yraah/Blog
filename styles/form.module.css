@@ -1,0 +1,23 @@
+.field {
+  margin-bottom: var(--space-md);
+}
+
+.label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.error {
+  color: #ff4d4f;
+  margin-top: var(--space-xs);
+  font-size: 12px;
+}
+
+.previewImage {
+  margin-top: var(--space-sm);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
