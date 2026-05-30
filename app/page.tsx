@@ -42,7 +42,7 @@ function GridSkeleton() {
 // --- Component ---
 export default function Home() {
   const router = useRouter();
-
+const [search, setSearch] = useState("");
   const [posts, setPosts]             = useState<PostForm[]>([]);
   const [categories, setCategories]   = useState<Category[]>([]);
   const [active, setActive]           = useState("");
@@ -149,10 +149,22 @@ export default function Home() {
   const heroSlides = useMemo(() => posts.slice(0, 5), [posts]);
 
   // useMemo — filtered posts only recomputed when posts or active changes
-  const filtered = useMemo(
-    () => posts.filter((p) => p.category?.toLowerCase() === active.toLowerCase()),
-    [posts, active]
-  );
+ const filtered = useMemo(() => {
+  return posts.filter((post) => {
+    const matchesCategory =
+      !active ||
+      post.category?.toLowerCase() === active.toLowerCase();
+
+    const matchesSearch =
+      !search ||
+      post.title.toLowerCase().includes(search.toLowerCase()) ||
+      cleanText(post.description)
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+    return matchesCategory && matchesSearch;
+  });
+}, [posts, active, search]);
 
   // useCallback — stable navigation reference
   const navigateTo = useCallback(
@@ -204,6 +216,17 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* SEARCH */}
+<div className={styles.searchWrapper}>
+  <input
+    type="text"
+    placeholder="Search posts..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className={styles.searchInput}
+  />
+</div>
 
       {/* CATEGORY */}
       <div className={styles.categoryWrapper}>
