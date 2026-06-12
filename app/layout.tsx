@@ -11,6 +11,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* ✅ Google Site Verification */}
+        <meta
+          name="google-site-verification"
+          content="SfInUVj6l5T0p-npUmH_gIbvO-Ogc8JcnvHoKzeLrgE"
+        />
+
         {/* ✅ Google Tag Manager (head script) */}
         <Script id="gtm-script" strategy="afterInteractive">
           {`
