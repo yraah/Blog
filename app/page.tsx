@@ -7,7 +7,7 @@ import styles from "@/styles/home.module.css";
 
 // --- Types ---
 type Category = { id: number; name: string; icon: string };
-type PostForm  = { id: number; title: string; description: string; category: string; slug: string; image: string };
+type PostForm = { id: number; title: string; description: string; category: string; slug: string; image: string };
 
 // --- Pure utils (outside component — never re-created on render) ---
 const cleanText = (html: string, limit = 120): string => {
@@ -42,26 +42,26 @@ function GridSkeleton() {
 // --- Component ---
 export default function Home() {
   const router = useRouter();
-const [search, setSearch] = useState("");
-  const [posts, setPosts]             = useState<PostForm[]>([]);
-  const [categories, setCategories]   = useState<Category[]>([]);
-  const [active, setActive]           = useState("");
-  const [current, setCurrent]         = useState(0);
-  const [loading, setLoading]         = useState(true);
+  const [search, setSearch] = useState("");
+  const [posts, setPosts] = useState<PostForm[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [active, setActive] = useState("");
+  const [current, setCurrent] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   // --- SEO meta tags (run once) ---
   useEffect(() => {
-    const TITLE       = "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
+    const TITLE = "Casino Tips, Bonuses & Winning Guides Philippines | Yoller";
     const DESCRIPTION = "Explore Yoller Casino Blog for slots tips, casino strategies, bonus guides, and beginner-friendly content created for all players.";
-    const URL         = "https://blog.yoller.com/";
-    const IMAGE       = "https://blog.yoller.com/default-og.jpg";
+    const URL = "https://blog.yoller.com/";
+    const IMAGE = "https://blog.yoller.com/default-og.jpg";
 
     document.title = TITLE;
 
     const setMeta = (key: string, value: string, isProperty = false) => {
-      const attr     = isProperty ? "property" : "name";
+      const attr = isProperty ? "property" : "name";
       const selector = `meta[${attr}="${key}"]`;
-      let el         = document.querySelector(selector);
+      let el = document.querySelector(selector);
       if (!el) {
         el = document.createElement("meta");
         el.setAttribute(attr, key);
@@ -83,20 +83,20 @@ const [search, setSearch] = useState("");
     setMeta("description", DESCRIPTION);
     setMeta("robots", "index, follow");
     setLink("canonical", URL);
-    setMeta("og:title",       TITLE,       true);
+    setMeta("og:title", TITLE, true);
     setMeta("og:description", DESCRIPTION, true);
-    setMeta("og:url",         URL,         true);
-    setMeta("og:type",        "website",   true);
-    setMeta("og:image",       IMAGE,       true);
-    setMeta("twitter:card",        "summary_large_image");
-    setMeta("twitter:title",       TITLE);
+    setMeta("og:url", URL, true);
+    setMeta("og:type", "website", true);
+    setMeta("og:image", IMAGE, true);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", TITLE);
     setMeta("twitter:description", DESCRIPTION);
-    setMeta("twitter:image",       IMAGE);
-    setMeta("twitter:site",        "@your_twitter_handle");
+    setMeta("twitter:image", IMAGE);
+    setMeta("twitter:site", "@your_twitter_handle");
   }, []);
 
   // --- Data fetch with retry (useRef pattern to avoid self-reference) ---
-  const fetchDataRef = useRef<() => Promise<void>>(async () => {});
+  const fetchDataRef = useRef<() => Promise<void>>(async () => { });
 
   const fetchData = useCallback(async (retry = 2) => {
     try {
@@ -149,22 +149,22 @@ const [search, setSearch] = useState("");
   const heroSlides = useMemo(() => posts.slice(0, 5), [posts]);
 
   // useMemo — filtered posts only recomputed when posts or active changes
- const filtered = useMemo(() => {
-  return posts.filter((post) => {
-    const matchesCategory =
-      !active ||
-      post.category?.toLowerCase() === active.toLowerCase();
+  const filtered = useMemo(() => {
+    return posts.filter((post) => {
+      const matchesCategory =
+        !active ||
+        post.category?.toLowerCase() === active.toLowerCase();
 
-    const matchesSearch =
-      !search ||
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      cleanText(post.description)
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const matchesSearch =
+        !search ||
+        post.title.toLowerCase().includes(search.toLowerCase()) ||
+        cleanText(post.description)
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
-    return matchesCategory && matchesSearch;
-  });
-}, [posts, active, search]);
+      return matchesCategory && matchesSearch;
+    });
+  }, [posts, active, search]);
 
   // useCallback — stable navigation reference
   const navigateTo = useCallback(
@@ -173,12 +173,14 @@ const [search, setSearch] = useState("");
   );
 
   // useCallback — stable dot/category click references
-  const handleDotClick      = useCallback((i: number) => setCurrent(i), []);
+  const handleDotClick = useCallback((i: number) => setCurrent(i), []);
   const handleCategoryClick = useCallback((name: string) => setActive(name), []);
 
   return (
     <div className={styles.container}>
-
+      <h1 className={styles.mainHeading}>
+        Yoller Blog: News, Tips & Insights
+      </h1>
       {/* HERO */}
       {loading ? (
         <HeroSkeleton />
@@ -193,7 +195,7 @@ const [search, setSearch] = useState("");
               <img src={post.image} alt={post.title} className={styles.heroImg} loading="lazy" />
 
               <div className={styles.heroOverlay}>
-                <h1 className={styles.heroTitle}>{cleanText(post.title)}</h1>
+                <h2 className={styles.heroTitle}>{cleanText(post.title)}</h2>
                 <p className={styles.heroSubtitle}>{cleanText(post.description, 100)}</p>
 
                 <button className={styles.readBtn} onClick={() => navigateTo(post.slug)}>
@@ -218,15 +220,16 @@ const [search, setSearch] = useState("");
       )}
 
       {/* SEARCH */}
-<div className={styles.searchWrapper}>
-  <input
-    type="text"
-    placeholder="Search posts..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    className={styles.searchInput}
-  />
-</div>
+      <div className={styles.searchWrapper}>
+        <input
+          type="text"
+          placeholder="Search posts..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={styles.searchInput}
+        />
+      </div>
+     
 
       {/* CATEGORY */}
       <div className={styles.categoryWrapper}>
