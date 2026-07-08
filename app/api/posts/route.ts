@@ -2,22 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { PostRow, PostBody } from "@/types/posts";
 
-export async function GET() {
-  try {
-    const [rows] = await db.query<PostRow[]>(
-      "SELECT * FROM posts WHERE deleted_at IS NULL ORDER BY id DESC"
-    );
+// export async function GET() {
+//   try {
+//     const [rows] = await db.query<PostRow[]>(
+//       "SELECT * FROM posts WHERE deleted_at IS NULL ORDER BY id DESC"
+//     );
 
-    return NextResponse.json(rows);
-  } catch (error: unknown) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
-}
+//     return NextResponse.json(rows);
+//   } catch (error: unknown) {
+//     return NextResponse.json(
+//       {
+//         error: error instanceof Error ? error.message : "Unknown error",
+//       },
+//       { status: 500 }
+//     );
+//   }
+// }
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GETCATEGORIES(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   const category = searchParams.get("category");
