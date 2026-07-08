@@ -102,17 +102,14 @@ export default function Home() {
     try {
       setLoading(true);
 
-      const [postRes, catRes] = await Promise.all([
-        fetch("/api/posts"),
+      const [catRes] = await Promise.all([
         fetch("/api/categories"),
       ]);
 
-      const [postData, catData] = await Promise.all([
-        postRes.json(),
+      const [catData] = await Promise.all([
         catRes.json(),
       ]);
 
-      setPosts(Array.isArray(postData) ? postData : []);
       setCategories(Array.isArray(catData) ? catData : []);
 
       if (catData?.length > 0) setActive(catData[0].name);
@@ -126,6 +123,24 @@ export default function Home() {
       setLoading(false);
     }
   }, []);
+
+  const fetchPostsByCategory = async (category: string, page = 1) => {
+  try {
+    setLoading(true);
+
+    const res = await fetch(
+      `/api/posts?category=${category}&page=${page}&limit=10`
+    );
+
+    const data = await res.json();
+
+    setPosts(data);
+  } catch (err) {
+    console.error("Error fetching posts:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchDataRef.current = () => fetchData();
@@ -174,7 +189,10 @@ export default function Home() {
 
   // useCallback — stable dot/category click references
   const handleDotClick = useCallback((i: number) => setCurrent(i), []);
-  const handleCategoryClick = useCallback((name: string) => setActive(name), []);
+  const handleCategoryClick = useCallback((name: string) => {
+  setActive(name);
+  fetchPostsByCategory(name); // 🔥 ADD THIS
+}, []);
 
   return (
     <div className={styles.container}>

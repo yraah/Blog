@@ -71,3 +71,32 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GETCATEGORIES(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+
+  const category = searchParams.get("category");
+  const page = Number(searchParams.get("page") || 1);
+  const limit = Number(searchParams.get("limit") || 10);
+  const offset = (page - 1) * limit;
+
+  try {
+    let query = "SELECT * FROM posts";
+    const values: any[] = [];
+
+    if (category) {
+      query += " WHERE category = ?";
+      values.push(category);
+    }
+
+    query += " ORDER BY id DESC LIMIT ? OFFSET ?";
+    values.push(limit, offset);
+
+    const [rows] = await db.query(query, values);
+
+    return Response.json(rows);
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "Failed to fetch posts" }, { status: 500 });
+  }
+}
