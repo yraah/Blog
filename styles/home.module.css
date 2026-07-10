@@ -234,3 +234,51 @@
   margin: 20px 0;
   text-align: center;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+/* Page text */
+.pageInfo {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Buttons */
+.pageBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(177, 94, 255, 0.25);
+  background: #fff;
+  color: #B15EFF;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+/* Hover */
+.pageBtn:hover:not(:disabled) {
+  background: #B15EFF;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(177, 94, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Disabled */
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Optional: subtle glass feel */
+.pageBtn:active:not(:disabled) {
+  transform: scale(0.95);
+}

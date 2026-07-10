@@ -48,6 +48,8 @@ export default function Home() {
   const [active, setActive] = useState("");
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+const [hasMore, setHasMore] = useState(true); // optional but useful
 
   // --- SEO meta tags (run once) ---
   useEffect(() => {
@@ -124,17 +126,20 @@ export default function Home() {
     }
   }, []);
 
-  const fetchPostsByCategory = async (category: string, page = 1) => {
+const fetchPostsByCategory = async (category: string, pageNum = 1) => {
   try {
     setLoading(true);
 
     const res = await fetch(
-      `/api/posts?category=${category}&page=${page}&limit=10`
+      `/api/posts?category=${category}&page=${pageNum}&limit=10`
     );
 
     const data = await res.json();
 
     setPosts(data);
+
+    // if less than 10, no more pages
+    setHasMore(data.length === 10);
   } catch (err) {
     console.error("Error fetching posts:", err);
   } finally {
@@ -187,11 +192,25 @@ export default function Home() {
     [router]
   );
 
+  const nextPage = () => {
+  const next = page + 1;
+  setPage(next);
+  fetchPostsByCategory(active, next);
+};
+
+const prevPage = () => {
+  if (page === 1) return;
+  const prev = page - 1;
+  setPage(prev);
+  fetchPostsByCategory(active, prev);
+};
+
   // useCallback — stable dot/category click references
   const handleDotClick = useCallback((i: number) => setCurrent(i), []);
-  const handleCategoryClick = useCallback((name: string) => {
+ const handleCategoryClick = useCallback((name: string) => {
   setActive(name);
-  fetchPostsByCategory(name); // 🔥 ADD THIS
+  setPage(1); // reset page
+  fetchPostsByCategory(name, 1);
 }, []);
 
   return (
@@ -284,6 +303,26 @@ export default function Home() {
           ))
         )}
       </div>
+
+<div className={styles.pagination}>
+  <button
+    onClick={prevPage}
+    disabled={page === 1}
+    className={styles.pageBtn}
+  >
+    ←
+  </button>
+
+  <span className={styles.pageInfo}>{page}</span>
+
+  <button
+    onClick={nextPage}
+    disabled={!hasMore}
+    className={styles.pageBtn}
+  >
+    →
+  </button>
+</div>
 
     </div>
   );
